@@ -1,0 +1,5 @@
+.idea/
+.idea/*
+*.o
+build/*
+build/

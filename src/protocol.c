@@ -46,5 +46,3 @@ int try_peek_header(const uint8_t* buf, uint32_t have, header_t* h_out) {
     if (protocol_header_validate(h_out) == -1) return -2;
     return 0;
 }
-
-

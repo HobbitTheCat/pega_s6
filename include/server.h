@@ -20,28 +20,29 @@ typedef struct {
     uint32_t session_id;
 } client_t;
 
+typedef enum {P_SERVER, P_CLIENT, P_EVENT, P_BUS} pointer_type_t;
+
+typedef struct {
+    pointer_type_t type;
+    int fd;
+    void* ptr;
+} response_t;
+
 typedef struct {
     int listen_fd;
     int epoll_fd;
     volatile int running;
 
-    client_t* registry[MAX_FILE_DESCRIPTOR];
+    response_t* registry[MAX_FILE_DESCRIPTOR];
 } server_t;
-
-typedef enum {SERVER, CLIENT, EVENT} pointer_t;
-typedef struct {
-    pointer_t type;
-    void* ptr;
-} response_t;
 
 
 int create_listen_socket(int port);
 int make_nonblocking(int fd);
 int create_epoll(void);
 
-int add_epoll_listen(int epoll_fd, int listen_fd, uint32_t events);
-int add_epoll_client(int epoll_fd, int fd, uint32_t events, client_t* client);
-int mod_epoll_event(int epoll_fd, int fd, uint32_t events, client_t* client);
+int add_epoll_event(int epoll_fd, int fd, uint32_t events, response_t* response);
+int mod_epoll_event(int epoll_fd, int fd, uint32_t events, response_t* response);
 int del_epoll_event(int epoll_fd, int fd);
 
 int init_server(server_t* server, int port);
@@ -54,5 +55,10 @@ void handle_read(server_t* server, client_t* client);
 void handle_write(server_t* server, client_t* client);
 
 void destroy_client(server_t* server, client_t* client);
+
+response_t* make_response(pointer_type_t type, int fd, void* ptr);
+void free_response(response_t* response);
+
+void reset_to_header(client_t* client);
 
 #endif //SERVER_H

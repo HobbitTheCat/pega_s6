@@ -14,6 +14,21 @@
 
 #define MAX_EVENTS 64
 
+// ---------- response_t helpers ----------
+response_t* make_response(const pointer_type_t type,const int fd, void* ptr) {
+    response_t* response = calloc(1, sizeof(*response));
+    if (!response) return NULL;
+    response->type = type;
+    response->fd = fd;
+    response->ptr = ptr;
+    return response;
+}
+
+void free_response(response_t* response) {
+    free(response);
+}
+
+
 int create_listen_socket(const int port) {
     const int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
@@ -72,35 +87,25 @@ int create_epoll(void) {
     return epoll_fd;
 }
 
-int add_epoll_listen(const int epoll_fd,const int listen_fd,const uint32_t events) {
+// ---------- epoll wrappers (heap ptr goes into data.ptr) ----------
+int add_epoll_event(const int epoll_fd, const int fd, const uint32_t events, response_t* response) {
     struct epoll_event ev = {
         .events = events,
-        .data.fd = listen_fd,
+        .data.ptr = response,
     };
-    const int r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, listen_fd, &ev);
-    if (r == -1) perror("epoll_ctl add listen");
-    return r;
+    const int rc = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
+    if (rc == -1) perror("server: epoll_ctl ADD");
+    return rc;
 }
 
-int add_epoll_client(const int epoll_fd,const int fd,const uint32_t events, client_t* client) {
+int mod_epoll_event(const int epoll_fd, const int fd, const uint32_t events, response_t* response) {
     struct epoll_event ev = {
         .events = events,
-        .data.ptr = client,
+        .data.ptr = response,
     };
-    const int r = epoll_ctl(epoll_fd, EPOLL_CTL_ADD, fd, &ev);
-    if (r == -1) perror("epoll_ctl add client");
-    return r;
-}
-
-
-int mod_epoll_event(const int epoll_fd, const int fd, const uint32_t events, client_t* client) {
-    struct epoll_event ev = {
-        .events = events,
-        .data.ptr = client,
-    };
-    const int result = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev);
-    if (result == -1) perror("server: epoll_ctl_mod");
-    return result;
+    const int rc = epoll_ctl(epoll_fd, EPOLL_CTL_MOD, fd, &ev);
+    if (rc == -1) perror("epoll_ctl MOD");
+    return rc;
 }
 
 int del_epoll_event(const int epoll_fd, const int fd) {
@@ -109,6 +114,7 @@ int del_epoll_event(const int epoll_fd, const int fd) {
     return result;
 }
 
+// ---------- server lifecycle ----------
 int init_server(server_t* server, const int port) {
     server->listen_fd = create_listen_socket(port);
     if (server->listen_fd == -1) return -1;
@@ -119,22 +125,43 @@ int init_server(server_t* server, const int port) {
         return -1;
     }
 
-    if (add_epoll_listen(server->epoll_fd, server->listen_fd, EPOLLIN | EPOLLET) == -1) {
-        perror("server: initial_add_epoll_event");
+    memset(server->registry, 0, sizeof(server->registry));
+    server->running = 1;
+
+    response_t* response = make_response(P_SERVER, server->listen_fd, server);
+    if (!response) {
+        perror("server: make_response listen_fd");
         cleanup_server(server);
         return -1;
     }
 
-    memset(server->registry, 0, sizeof(server->registry));
-    server->running = 1;
+    if (add_epoll_event(server->epoll_fd, server->listen_fd, EPOLLIN | EPOLLET, response) == -1) {
+        perror("server: initial_add_epoll_event");
+        free_response(response);
+        cleanup_server(server);
+        return -1;
+    }
+    if (server->listen_fd >= 0 && server->listen_fd < MAX_FILE_DESCRIPTOR)
+        server->registry[server->listen_fd] = response;
+
     return 0;
 }
 
 void cleanup_server(server_t* server) {
     if (!server) return;
     server->running = 0;
-    for (int i = 0; i < MAX_FILE_DESCRIPTOR; i++) {
-        destroy_client(server, server->registry[i]);
+
+    for (int fd = 0; fd < MAX_FILE_DESCRIPTOR; fd++) {
+        response_t* response = server->registry[fd];
+        if (!response) continue;
+
+        if (response->type == P_CLIENT) {
+            client_t* client = (client_t*)response->ptr;
+            destroy_client(server, client);
+        }
+        if (response->type == P_EVENT || response->type == P_SERVER) {
+            free_response(response); // освобождаем response не трогаем буфер так как это не наша зона ответсвенности
+        }
     }
 
     del_epoll_event(server->epoll_fd, server->listen_fd);
@@ -151,30 +178,32 @@ void* io_thread_main(void* arg) {
         if (n == -1) {
             if (errno == EINTR) continue;
             perror("server: epoll_wait");
-            // не нужно ли тут сделать cleanup_server?
+            cleanup_server(server);
             break;
         };
         for (int i = 0; i < n; i++) {
             const uint32_t event = events[i].events;
+            const response_t* response = (response_t*)events[i].data.ptr;
+            if (!response) continue;
 
             if (event & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
-                if (events[i].data.fd == server->listen_fd) {
-                    continue;
-                } else {
-                    destroy_client(server, events[i].data.ptr);
-                    continue;
+                if (response->type == P_CLIENT) {
+                    destroy_client(server, (client_t*)response->ptr);
                 }
-            }
-
-            if (events[i].data.fd == server->listen_fd) {
-                handle_accept(server);
                 continue;
             }
 
-            client_t* client = events[i].data.ptr;
-
-            if (event & EPOLLIN) handle_read(server, client);
-            if (event & EPOLLOUT) handle_write(server, client);
+            if (response->type == P_SERVER) {
+                handle_accept(server);
+            } else if (response->type == P_CLIENT) {
+                client_t* client = (client_t*)response->ptr;
+                if (event & EPOLLIN) handle_read(server, client);
+                if (event & EPOLLOUT) handle_write(server, client);
+            } else if (response->type == P_EVENT) {
+                // тут обработать событие связанное с буферами
+            } else if (response->type == P_BUS) {
+                // тут обработать событие связанное с шиной событий из SessionManager
+            }
         }
     }
 
@@ -198,17 +227,24 @@ void handle_accept(server_t* server) {
         client_t* client = calloc(1, sizeof(client_t));
         if (!client) {close(client_fd); continue;}
         client->fd = client_fd;
-        client->state = R_HEADER;
+        reset_to_header(client);
         client->have = 0;
-        client->need = 0;
 
-        if (add_epoll_client(server->epoll_fd, client_fd, EPOLLIN | EPOLLET, client) == -1) {
+        response_t* response = make_response(P_CLIENT, client_fd, client);
+        if (!response) {
+            close(client_fd);
+            free(client);
+            continue;
+        }
+
+        if (add_epoll_event(server->epoll_fd, client_fd, EPOLLIN | EPOLLET, response) == -1) {
+            free_response(response);
             close(client_fd);
             free(client);
             continue;
         }
         if (client_fd >= 0 && client_fd < MAX_FILE_DESCRIPTOR)
-            server->registry[client_fd] = client;
+            server->registry[client_fd] = response;
 
         printf("New connection: fd=%d\n", client_fd);
     }
@@ -265,6 +301,7 @@ void handle_read(server_t* server, client_t* client) {
 
             if (client->state == R_PAYLOAD) {
                 if (client->have < client->need) break;
+
                 // TODO тут нужен код для работы с готовым буфером
 
                 const uint32_t remain = client->have - client->need;
@@ -280,7 +317,7 @@ void handle_read(server_t* server, client_t* client) {
         break;
     }
     // Если буфер забит, но мы все еще ждем больше - проблема протокола, сбрасываем соединение
-    if (client->have == sizeof(client->buf)) {
+    if (client->have == sizeof(client->buf) && client->have < client->need) {
         destroy_client(server, client);
     }
 }
@@ -295,6 +332,12 @@ void destroy_client(server_t* server, client_t* client) {
     if (!client) return;
     if (server->epoll_fd >= 0) del_epoll_event(server->epoll_fd, client->fd);
     close(client->fd);
-    if (client->fd >= 0 && client->fd < MAX_FILE_DESCRIPTOR) server->registry[client->fd] = NULL;
+    if (client->fd >= 0 && client->fd < MAX_FILE_DESCRIPTOR) {
+        response_t* response = server->registry[client->fd];
+        if (response) {
+            free_response(response);
+            server->registry[client->fd] = NULL;
+        }
+    }
     free(client);
 }

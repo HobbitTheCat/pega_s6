@@ -2,6 +2,7 @@
 #define SERVER_H
 
 #include <stdint.h>
+#include "fd_map.h"
 
 #define SP_MAX_FRAME 4096
 #define MAX_FILE_DESCRIPTOR 65536
@@ -33,7 +34,7 @@ typedef struct {
     int epoll_fd;
     volatile int running;
 
-    response_t* registry[MAX_FILE_DESCRIPTOR];
+    fd_map_t* registry_map;
 } server_t;
 
 
@@ -50,7 +51,7 @@ void cleanup_server(server_t* server);
 
 void* io_thread_main(void* arg);
 
-void handle_accept(server_t* server);
+void handle_accept(const server_t* server);
 void handle_read(server_t* server, client_t* client);
 void handle_write(server_t* server, client_t* client);
 

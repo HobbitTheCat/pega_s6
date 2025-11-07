@@ -125,7 +125,7 @@ int init_server(server_t* server, const int port) {
         return -1;
     }
 
-    memset(server->registry, 0, sizeof(server->registry));
+    server->registry_map = fd_map_create(256);
     server->running = 1;
 
     response_t* response = make_response(P_SERVER, server->listen_fd, server);
@@ -142,7 +142,7 @@ int init_server(server_t* server, const int port) {
         return -1;
     }
     if (server->listen_fd >= 0 && server->listen_fd < MAX_FILE_DESCRIPTOR)
-        server->registry[server->listen_fd] = response;
+        fd_map_set(server->registry_map, server->listen_fd, response);
 
     return 0;
 }
@@ -151,19 +151,20 @@ void cleanup_server(server_t* server) {
     if (!server) return;
     server->running = 0;
 
-    for (int fd = 0; fd < MAX_FILE_DESCRIPTOR; fd++) {
-        response_t* response = server->registry[fd];
+    for (int fd = 0; fd < server->registry_map->capacity; fd ++) {
+        response_t* response = fd_map_get(server->registry_map, fd);
         if (!response) continue;
 
         if (response->type == P_CLIENT) {
             client_t* client = (client_t*)response->ptr;
             destroy_client(server, client);
         }
-        if (response->type == P_EVENT || response->type == P_SERVER) {
-            free_response(response); // освобождаем response не трогаем буфер так как это не наша зона ответсвенности
+        if (response->type == P_EVENT || response->type == P_SERVER || response->type == P_EVENT) {
+            free_response(response);
         }
+        fd_map_remove(server->registry_map, fd);
     }
-
+    fd_map_destroy(server->registry_map);
     del_epoll_event(server->epoll_fd, server->listen_fd);
     close(server->listen_fd);
     close(server->epoll_fd);
@@ -210,7 +211,7 @@ void* io_thread_main(void* arg) {
     return NULL;
 }
 
-void handle_accept(server_t* server) {
+void handle_accept(const server_t* server) {
     while (1) {
         struct sockaddr_in client_address;
         socklen_t client_address_len = sizeof(client_address);
@@ -244,7 +245,7 @@ void handle_accept(server_t* server) {
             continue;
         }
         if (client_fd >= 0 && client_fd < MAX_FILE_DESCRIPTOR)
-            server->registry[client_fd] = response;
+            fd_map_set(server->registry_map, client->fd, response);
 
         printf("New connection: fd=%d\n", client_fd);
     }
@@ -323,20 +324,21 @@ void handle_read(server_t* server, client_t* client) {
 }
 
 
-void handle_write(server_t* s, client_t* c) {
+void handle_write(const server_t* s,const  client_t* c) {
     // TODO: отправка из очереди (ring buffer); при опустошении убрать EPOLLOUT
+    (void)s; (void)c;
 }
 
 
-void destroy_client(server_t* server, client_t* client) {
+void destroy_client(const server_t* server, client_t* client) {
     if (!client) return;
     if (server->epoll_fd >= 0) del_epoll_event(server->epoll_fd, client->fd);
     close(client->fd);
     if (client->fd >= 0 && client->fd < MAX_FILE_DESCRIPTOR) {
-        response_t* response = server->registry[client->fd];
+        response_t* response = fd_map_get(server->registry_map, client->fd);
         if (response) {
+            fd_map_remove(server->registry_map, client->fd);
             free_response(response);
-            server->registry[client->fd] = NULL;
         }
     }
     free(client);

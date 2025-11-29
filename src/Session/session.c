@@ -6,14 +6,15 @@
 
 #include "Session/session.h"
 
-int init_session(session_t* session, const uint32_t session_id, const uint8_t number_of_players) {
-    session->num_players = number_of_players;
+int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity) {
+    session->capacity = capacity;
+    session->num_players = 0;
     session->id = session_id;
 
     session->epoll_fd = epoll_create1(EPOLL_CLOEXEC);
     if (session->epoll_fd == -1) {perror("session: epoll_create");return -1;}
 
-    session->players = malloc(sizeof(player_t) * number_of_players);
+    session->players = calloc(capacity, sizeof(player_t));
     if (!session->players) {
         perror("session: malloc clients");
         close(session->epoll_fd);
@@ -37,13 +38,21 @@ int init_session(session_t* session, const uint32_t session_id, const uint8_t nu
     return 0;
 }
 
+void cleanup_session_fist_step(const session_t* session) {
+    session_message_t* system_message = malloc(sizeof(session_message_t));
+    system_message->type = SYSTEM_MESSAGE;
+    system_message->data.system.type = SESSION_UNREGISTER;
+    system_message->data.system.id.session_id = session->id;
+    session_bus_push(&session->bus->write, system_message);
+}
+
 void cleanup_session(session_t* session) {
     session->running = 0;
     epoll_ctl(session->epoll_fd, EPOLL_CTL_DEL, session->bus->read.event_fd, NULL);
     destroy_session_bus(session->bus);
     free(session->players);
     close(session->epoll_fd);
-    free(session); // тут освобождаю так как сессия владеет сама собой и саморазрушается
+    free(session);
 }
 
 void* session_main(void* arg) {
@@ -68,17 +77,37 @@ void* session_main(void* arg) {
             const int received = buffer_pop(read_buffer, &msg);
             if (received == BUFFER_EEMPTY) break;
             if (received == BUFFER_SUCCESS && msg) {
-
-
-                // TODO treat message here
-
-
                 print_session_message(msg);
+                if (handle_system_message(session, msg) > 0) continue;
+
+                // TODO handle message here
+
+
+
                 free(msg);
             }
         }
+
+        if (session->num_players == 0) cleanup_session_fist_step(session);
     }
 
     cleanup_session(session);
     return NULL;
+}
+
+int get_index_by_id(const session_t* session, const uint32_t user_id) {
+    for (int i = 0; i < session->capacity; i++) {
+        if (session->players[i].client_id == user_id) {
+            return i;
+        }
+    }
+    return -1;
+}
+int get_first_free_player_place(const session_t* session) {
+    for (int i = 0; i < session->capacity; i++) {
+        if (session->players[i].client_id == 0) {
+            return i;
+        }
+    }
+    return -1;
 }

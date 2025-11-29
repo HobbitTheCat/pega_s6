@@ -15,18 +15,21 @@ typedef enum {
     PKT_REGISTER = 5,
     PKT_UNREGISTER = 6,
     PKT_SYNC_STATE = 7,
+
     PKT_SESSION_JOIN = 8,
-    PKT_SESSION_EXIT = 9,
+    PKT_SESSION_LEAVE = 9,
     PKT_SESSION_CREATE = 10,
-    PKT_SESSION_STATE = 11,        // <-
-    PKT_READY = 12,             // ->
-    PKT_START_SESSION = 13,        // ->
-    PKT_START_SESSION_RETURN = 14, // <-
-    PKT_INFO = 15,
-    PKT_REQUEST_EXTRA = 16,
-    PKT_RESPONSE_EXTRA = 17,
-    PKT_PHASE_RESULT = 18,
-    PKT_SESSION_END = 19,
+    PKT_SESSION_CLOSE = 11,
+    PKT_SESSION_STATE = 12,        // <-
+
+    PKT_READY = 13,             // ->
+    PKT_START_SESSION = 14,        // ->
+    PKT_START_SESSION_RETURN = 15, // <-
+    PKT_INFO = 16,
+    PKT_REQUEST_EXTRA = 17,
+    PKT_RESPONSE_EXTRA = 18,
+    PKT_PHASE_RESULT = 19,
+    PKT_SESSION_END = 20,
     // ...
     PKT_ERROR = 255
 } packet_type_t;

@@ -1,5 +1,4 @@
 #include "Server/server.h"
-#include "SupportStructure/session_bus.h"
 #include "SupportStructure/fd_map.h"
 #include "Session/session.h"
 
@@ -27,9 +26,22 @@ void handle_bus_message(const server_t* server, const response_t* response) {
         const int received = buffer_pop(response->ptr, &message);
         if (received == BUFFER_EEMPTY) break;
         if (received == BUFFER_SUCCESS && message) {
-            const response_t* client_response = fd_map_get(server->clients, (int)message->client_fd);
-            if (client_response->type != P_CLIENT) {printf("NO COMMENTS client fd is not client?");free(message);return;}
-            enqueue_message(server, client_response->ptr, message->buf, message->message_length);
+            if (message->type == USER_MESSAGE) {
+                const response_t* client_response = fd_map_get(server->response, (int)message->data.user.client_fd);
+                if (client_response->type != P_CLIENT) {printf("NO COMMENTS client fd is not client?\n");free(message);return;}
+                enqueue_message(server, client_response->ptr, message->data.user.buf, message->data.user.message_length);
+            } else {
+                switch (message->data.system.type) {
+                    case SESSION_UNREGISTER:
+                        session_t* session = fd_map_get(server->registered_sessions, (int)message->data.system.id.session_id);
+                        unregister_session(server, session);
+                        break;
+                    default:
+                        printf("Unknown message type %d\n", message->data.system.type);
+                        print_session_message(message);
+                        break;
+                }
+            }
             free(message);
         }
     }
@@ -41,6 +53,14 @@ int create_new_session(server_t* server, const uint8_t number_of_players) {
     if (!new_session) return -1;
     if (init_session(new_session, session_id, number_of_players) == -1) {free(new_session); return -1;}
     fd_map_set(server->registered_sessions, (int)session_id, new_session->bus);
+
+    response_t* response = create_response(P_BUS, new_session->bus->write.event_fd, &new_session->bus->write.queue);
+    if (!response) {cleanup_session(new_session); return -1;}
+    if (add_epoll_event(server->epoll_fd, new_session->bus->write.event_fd, EPOLLIN, response) == -1) {
+        cleanup_session(new_session); free(response); return -1;
+    }
+    fd_map_set(server->response, new_session->bus->write.event_fd, response);
+
     pthread_t session;
     if (pthread_create(&session, NULL, session_main, new_session) != 0) {
         fd_map_remove(server->registered_sessions, (int)session_id);
@@ -51,7 +71,9 @@ int create_new_session(server_t* server, const uint8_t number_of_players) {
     return (int)session_id;
 }
 
-int unregister_session(const server_t* server, session_t* session) { //TODO переписать что бы только удалять записи из реестра все остальное в самой сессии
+int unregister_session(const server_t* server, session_t* session) {
+    del_epoll_event(server->epoll_fd, session->bus->write.event_fd);
+
     fd_map_remove(server->registered_sessions, (int)session->id);
     session->running = 0;
     const uint64_t one = 1; write(session->bus->write.event_fd, &one, sizeof(one));

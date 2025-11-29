@@ -96,7 +96,7 @@ int init_server(server_t* server, const int port) {
     server->epoll_fd = create_epoll();
     if (server->epoll_fd == -1){ close(server->listen_fd); return -1;}
 
-    server->clients = fd_map_create(256);
+    server->response = fd_map_create(256);
     server->registered_sessions = fd_map_create(32);
     server->registered_clients = int_map_create(256);
     server->next_player_id = 1;
@@ -109,7 +109,7 @@ int init_server(server_t* server, const int port) {
         perror("server_init: add_epoll_event"); free(response); cleanup_server(server); return -1;
     }
 
-    fd_map_set(server->clients, server->listen_fd, response);
+    fd_map_set(server->response, server->listen_fd, response);
     return 0;
 }
 
@@ -117,18 +117,18 @@ void cleanup_server(server_t* server) {
     if (!server) return;
     server->running = 0;
 
-    for (int fd = 0; fd < server->clients->capacity; fd++) {
-        response_t* response = fd_map_get(server->clients, fd);
+    for (int fd = 0; fd < server->response->capacity; fd++) {
+        response_t* response = fd_map_get(server->response, fd);
         if (!response) continue;
 
         if (response->type == P_CLIENT) {
             cleanup_client(server, response->ptr);
         } else {
-            fd_map_remove(server->clients, fd);
+            fd_map_remove(server->response, fd);
             free(response);
         }
     }
-    fd_map_destroy(server->clients);
+    fd_map_destroy(server->response);
     fd_map_destroy(server->registered_sessions);
     int_map_destroy(server->registered_clients);
 
@@ -143,9 +143,9 @@ void cleanup_client(const server_t* server, frame_t* client) {
     del_epoll_event(server->epoll_fd, client->fd);
     shutdown(client->fd, SHUT_RDWR);
     close(client->fd);
-    response_t* response = fd_map_get(server->clients, client->fd);
+    response_t* response = fd_map_get(server->response, client->fd);
     if (response) {
-        fd_map_remove(server->clients, client->fd);
+        fd_map_remove(server->response, client->fd);
         free(response);
     }
     free_tx_queue(&client->tx);
@@ -179,7 +179,7 @@ void* server_main(void* arg) {
                 if (event & EPOLLIN) handle_read(server, frame);
                 if (event & EPOLLOUT) handle_write(server, frame);
             } else if (response->type == P_BUS) {
-                handle_bus_message(server, response->ptr);
+                handle_bus_message(server, response);
             }
         }
     }
@@ -210,7 +210,7 @@ void handle_accept(const server_t* server) {
             free(response); close(client_fd); free(client); continue;
         }
 
-        fd_map_set(server->clients, client_fd, response);
+        fd_map_set(server->response, client_fd, response);
         printf("server: accepted connection from %s\n", inet_ntoa(client_address.sin_addr));
     }
 }
@@ -343,7 +343,7 @@ void handle_write(const server_t* server, frame_t* frame) {
     if (frame->tx.epollout == 1) {
         mod_epoll_event(server->epoll_fd, frame->fd,
             EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLET,
-            fd_map_get(server->clients, frame->fd));
+            fd_map_get(server->response, frame->fd));
         frame->tx.epollout = 0;
     }
 }

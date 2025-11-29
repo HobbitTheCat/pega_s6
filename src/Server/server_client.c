@@ -30,7 +30,7 @@ int enqueue_message(const server_t* server, frame_t* frame, const uint8_t* buf, 
     if (frame->tx.head && frame->tx.epollout == 0) {
         mod_epoll_event(server->epoll_fd, frame->fd,
             EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLET | EPOLLOUT,
-            fd_map_get(server->clients, frame->fd));
+            fd_map_get(server->response, frame->fd));
         frame->tx.epollout = 1;
     }
     return 0;

@@ -1,7 +1,7 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
 #include <stdlib.h>
-
+#include <string.h>
 
 #include "SupportStructure/session_bus.h"
 
@@ -62,15 +62,43 @@ int session_bus_push(bus_base_t* bus, session_message_t* message) {
     return BUFFER_SUCCESS;
 }
 
+int send_user_message(bus_base_t* bus, const uint32_t user_id, const uint32_t user_fd,
+    const uint32_t session_id, const uint8_t packet_type, const uint16_t message_length, const uint8_t* buf) {
+    session_message_t* message = malloc(sizeof(session_message_t));
+    if (!message) return -1;
+    message->type = USER_MESSAGE;
+    message->data.user.client_id = user_id;
+    message->data.user.client_fd = user_fd;
+    message->data.user.session_id = session_id;
+    message->data.user.packet_type = packet_type;
+    message->data.user.message_length = message_length;
+    memcpy(message->data.user.buf, buf, message_length);
+    if (session_bus_push(bus, message) == -1){ free(message); return -1; }
+    return 0;
+}
 
 void print_session_message(const session_message_t *msg) {
     if (!msg) return;
-    printf("──────────────────────────────\n");
-    printf("📨  New Message Received\n");
-    printf("──────────────────────────────\n");
-    printf("Client ID:   %u\n", msg->client_id);
-    printf("Session ID:  %u\n", msg->session_id);
-    printf("FD:          %u\n", msg->client_fd);
-    printf("Packet type:      %u bytes\n", msg->packet_type);
-    printf("──────────────────────────────\n");
+    printf("┌────────────────────────────┐\n");
+    if (msg->type == SYSTEM_MESSAGE) {
+        printf("│New system message│\n");
+        if (msg->data.system.type == CLIENT_UNREGISTER) {
+            printf("│    Client unregistered     │\n");
+            printf("├────────────────────────────┤\n");
+            printf("│Client ID: %u│\n", msg->data.system.id.client_id);
+        } else {
+            printf("│    Session unregistered    │\n");
+            printf("├────────────────────────────┤\n");
+            printf("│Session ID: %u│\n", msg->data.system.id.session_id);
+        }
+    } else {
+        printf("│      New user message      │\n");
+        printf("├────────────────────────────┤\n");
+        printf("│Client ID: %u                │\n", msg->data.user.client_id);
+        printf("│Session ID: %u               │\n", msg->data.user.session_id);
+        printf("│FD: %u                       │\n", msg->data.user.client_fd);
+        printf("│Packet type: %u              │\n", msg->data.user.packet_type);
+        printf("│Message length: %u          │\n", msg->data.user.message_length);
+    }
+    printf("└────────────────────────────┘\n");
 }

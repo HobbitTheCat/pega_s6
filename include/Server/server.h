@@ -3,7 +3,7 @@
 
 #include "SupportStructure/fd_map.h"
 #include "SupportStructure/int_map.h"
-#include "SupportStructure/session_bus.h"
+#include "Session/session.h"
 #include "Server/frame.h"
 
 #define MAX_EVENTS 64
@@ -13,7 +13,7 @@ typedef struct {
     int epoll_fd;
     volatile int running;
 
-    fd_map_t* clients;             // client_fd -> frame
+    fd_map_t* response;             // client_fd -> response
 
     int_map_t* registered_clients; // client_id -> client_fd
     fd_map_t* registered_sessions; // session_id -> session_bus
@@ -60,6 +60,7 @@ int enqueue_message(const server_t* server, frame_t* frame, const uint8_t* buf, 
 
 // Session manager
 int create_new_session(server_t* server, uint8_t number_of_players);
+int unregister_session(const server_t* server, session_t* session);
 int validator_check_session(const server_t* server, const frame_t* frame);
 uint32_t get_new_session_id(server_t* server);
 

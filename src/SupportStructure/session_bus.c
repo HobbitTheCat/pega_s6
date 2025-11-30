@@ -81,15 +81,15 @@ void print_session_message(const session_message_t *msg) {
     if (!msg) return;
     printf("┌────────────────────────────┐\n");
     if (msg->type == SYSTEM_MESSAGE) {
-        printf("│New system message│\n");
+        printf("│     New system message:    │\n");
         if (msg->data.system.type == CLIENT_UNREGISTER) {
             printf("│    Client unregistered     │\n");
             printf("├────────────────────────────┤\n");
-            printf("│Client ID: %u│\n", msg->data.system.id.client_id);
+            printf("│Client ID: %u               │\n", msg->data.system.id.client_id);
         } else {
             printf("│    Session unregistered    │\n");
             printf("├────────────────────────────┤\n");
-            printf("│Session ID: %u│\n", msg->data.system.id.session_id);
+            printf("│Session ID: %u               │\n", msg->data.system.id.session_id);
         }
     } else {
         printf("│      New user message      │\n");

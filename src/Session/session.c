@@ -52,7 +52,6 @@ void cleanup_session(session_t* session) {
     destroy_session_bus(session->bus);
     free(session->players);
     close(session->epoll_fd);
-    free(session);
 }
 
 void* session_main(void* arg) {
@@ -82,16 +81,14 @@ void* session_main(void* arg) {
 
                 // TODO handle message here
 
-
-
                 free(msg);
             }
         }
 
         if (session->num_players == 0) cleanup_session_fist_step(session);
     }
-
     cleanup_session(session);
+    free(session);
     return NULL;
 }
 

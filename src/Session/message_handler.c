@@ -4,6 +4,7 @@
 #include "Protocol/protocol.h"
 
 #include <stdlib.h>
+#include <unistd.h>
 
 int send_user_response(const session_t* session, const session_message_t* msg, const uint16_t packet_size, const uint8_t* buffer) {
     return send_user_message(&session->bus->write, msg->data.user.client_id, msg->data.user.client_fd,
@@ -16,7 +17,18 @@ int handle_system_message(session_t* session, session_message_t* msg) {
     if (!buffer) return -1;
     int packet_size = 0;
     if (msg->type == SYSTEM_MESSAGE) {
-
+        if (msg->data.system.type == CLIENT_UNREGISTER) {
+            remove_player(session, msg->data.system.id.client_id);
+        } else if (msg->data.system.type == SESSION_UNREGISTERED) {
+            free(buffer);
+            session->running = 0;
+            const uint64_t wake_up = 1;
+            write(session->bus->read.event_fd, &wake_up, sizeof(wake_up));
+            return 1;
+        } else {
+            printf("Unhandled message type %d\n", msg->data.system.type);
+        }
+        free(buffer); return 1;
     } else {
         switch (msg->data.user.packet_type) {
             case PKT_SESSION_JOIN:
@@ -35,9 +47,9 @@ int handle_system_message(session_t* session, session_message_t* msg) {
                 packet_size = create_simple_packet(buffer, PKT_SESSION_STATE, session->id, msg->data.user.client_id);
                 break;
             case PKT_SESSION_LEAVE:
-                const int player_index = get_index_by_id(session, msg->data.user.client_id);
-                if (player_index == -1) {packet_size = create_error_packet(buffer, session->id, msg->data.user.client_id, 0x03, "Invalid user index"); break;}
-                session->players[get_index_by_id(session, msg->data.user.client_id)].client_id = 0;
+                if (remove_player(session, msg->data.user.client_id) == -1) {
+                    packet_size = create_error_packet(buffer, session->id, msg->data.user.client_id, 0x03, "Invalid user index"); break;
+                }
                 packet_size = create_simple_packet(buffer, PKT_SESSION_END, session->id, msg->data.user.client_id);
                 break;
             case PKT_SESSION_CLOSE:

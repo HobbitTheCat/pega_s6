@@ -2,6 +2,7 @@
 #define PROTOCOL_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define PROTOCOL_MAGIC 0x5053u // 'PS'
 #define PROTOCOL_VERSION 1

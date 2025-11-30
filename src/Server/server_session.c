@@ -33,8 +33,7 @@ void handle_bus_message(const server_t* server, const response_t* response) {
             } else {
                 switch (message->data.system.type) {
                     case SESSION_UNREGISTER:
-                        session_t* session = fd_map_get(server->registered_sessions, (int)message->data.system.id.session_id);
-                        unregister_session(server, session);
+                        unregister_session(server, message->data.system.id.session_id);
                         break;
                     default:
                         printf("Unknown message type %d\n", message->data.system.type);
@@ -71,17 +70,20 @@ int create_new_session(server_t* server, const uint8_t number_of_players) {
     return (int)session_id;
 }
 
-int unregister_session(const server_t* server, session_t* session) {
-    del_epoll_event(server->epoll_fd, session->bus->write.event_fd);
-
-    fd_map_remove(server->registered_sessions, (int)session->id);
-    session->running = 0;
-    const uint64_t one = 1; write(session->bus->write.event_fd, &one, sizeof(one));
+int unregister_session(const server_t* server, const uint32_t session_id) {
+    session_bus_t* bus = fd_map_get(server->registered_sessions, (int)session_id);
+    del_epoll_event(server->epoll_fd, bus->write.event_fd);
+    fd_map_remove(server->registered_sessions, (int)session_id);
+    session_message_t* system_message = malloc(sizeof(session_message_t));
+    system_message->type = SYSTEM_MESSAGE;
+    system_message->data.system.type = SESSION_UNREGISTERED;
+    system_message->data.system.id.session_id = session_id;
+    session_bus_push(&bus->read, system_message);
     return 0;
 }
 
-int validator_check_session(const server_t* server, const frame_t* frame) {
-    if (fd_map_exists(server->registered_sessions, (int)frame->session_id) == -1)
+int validator_check_session(const server_t* server, const server_conn_t* conn) {
+    if (fd_map_exists(server->registered_sessions, (int)conn->session_id) == -1)
         return -1;
     return 0;
 }

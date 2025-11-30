@@ -138,18 +138,19 @@ void cleanup_server(server_t* server) {
 }
 
 
-void cleanup_client(const server_t* server, frame_t* client) {
-    if (!client) return;
-    del_epoll_event(server->epoll_fd, client->fd);
-    shutdown(client->fd, SHUT_RDWR);
-    close(client->fd);
-    response_t* response = fd_map_get(server->response, client->fd);
+void cleanup_client(server_t* server, server_conn_t* conn) {
+    if (!conn) return;
+    if (conn->user_id != 0) unregister_client(server, conn);
+    del_epoll_event(server->epoll_fd, conn->fd);
+    shutdown(conn->fd, SHUT_RDWR);
+    close(conn->fd);
+    response_t* response = fd_map_get(server->response, conn->fd);
     if (response) {
-        fd_map_remove(server->response, client->fd);
+        fd_map_remove(server->response, conn->fd);
         free(response);
     }
-    free_tx_queue(&client->tx);
-    free(client);
+    server_conn_free_tx(conn);
+    free(conn);
 }
 
 void* server_main(void* arg) {
@@ -175,9 +176,9 @@ void* server_main(void* arg) {
             if (response->type == P_SERVER) {
                 handle_accept(server);
             } else if (response->type == P_CLIENT) {
-                frame_t* frame = response->ptr;
-                if (event & EPOLLIN) handle_read(server, frame);
-                if (event & EPOLLOUT) handle_write(server, frame);
+                server_conn_t* conn = response->ptr;
+                if (event & EPOLLIN) handle_read(server, conn);
+                if (event & EPOLLOUT) handle_write(server, conn);
             } else if (response->type == P_BUS) {
                 handle_bus_message(server, response);
             }
@@ -199,15 +200,15 @@ void handle_accept(const server_t* server) {
         }
         if (make_nonblocking(client_fd) == -1) continue;
 
-        frame_t* client = calloc(1, sizeof(*client));
-        if (!client) {close(client_fd); continue;}
-        init_client(client, client_fd);
+        server_conn_t* conn = calloc(1, sizeof(*conn));
+        if (!conn) {close(client_fd); continue;}
+        server_conn_init(conn, client_fd);
 
-        response_t* response = create_response(P_CLIENT, client->fd, client);
-        if (!response) {close(client_fd); free(client); continue;}
+        response_t* response = create_response(P_CLIENT, conn->fd, conn);
+        if (!response) {close(client_fd); free(conn); continue;}
 
         if (add_epoll_event(server->epoll_fd, client_fd, EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLET, response) == -1) {
-            free(response); close(client_fd); free(client); continue;
+            free(response); close(client_fd); free(conn); continue;
         }
 
         fd_map_set(server->response, client_fd, response);
@@ -215,136 +216,80 @@ void handle_accept(const server_t* server) {
     }
 }
 
-// void handle_read(server_t* server, frame_t* frame) {
-//     uint8_t* buf = frame->rx.buf;
-//     const uint32_t capacity = sizeof (frame->rx.buf);
-//     for (;;) {
-//         while (frame->rx.write_pos != capacity) {
-//             const ssize_t n = recv(frame->fd, buf + frame->rx.write_pos, capacity - frame->rx.write_pos, 0);
-//             if (n > 0) {frame->rx.write_pos += n; continue;}
-//             if (n == 0) {cleanup_client(server, frame); return;}
-//             if (errno == EINTR) continue;
-//             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-//             perror("server: recv"); cleanup_client(server, frame); return;
-//         }
-//
-//         for (;;) {
-//             const uint32_t available = frame->rx.write_pos - frame->rx.read_pos;
-//             if (frame->rx.state == R_HEADER) {
-//                 header_t header;
-//                 const int r = try_peek_header(buf + frame->rx.read_pos, available, &header);
-//                 if (r == -1) break;
-//                 if (r == -2) {cleanup_client(server, frame); return;}
-//                 frame->rx.need = header.length;
-//                 frame->user_id = header.user_id;
-//                 frame->session_id = header.session_id;
-//                 frame->packet_type = header.type;
-//                 frame->rx.state = R_PAYLOAD;
-//                 if (available < frame->rx.need) break;
-//             }
-//
-//             if (frame->rx.state == R_PAYLOAD) {
-//                 if (available < frame->rx.need) break;
-//
-//
-//                 frame->rx.read_pos += frame->rx.need;
-//                 frame->rx.state = R_HEADER;
-//                 continue;
-//             }
-//             break;
-//         }
-//
-//         if (frame->rx.state == frame->rx.write_pos) {
-//             frame->rx.read_pos = frame->rx.write_pos = 0;
-//         } else if (frame->rx.write_pos == capacity && frame->rx.read_pos > 0) {
-//             const uint32_t remain = frame->rx.write_pos - frame->rx.read_pos;
-//             memmove(buf, buf + frame->rx.read_pos, remain);
-//             frame->rx.write_pos = remain;
-//             frame->rx.read_pos = 0;
-//         }
-//         if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-//     }
-//
-//     if (frame->rx.write_pos == capacity && frame->rx.state == R_PAYLOAD) {
-//         cleanup_client(server, frame);
-//     }
-// }
-
-void handle_read(server_t* server, frame_t* frame) {
+void handle_read(server_t* server, server_conn_t* conn) {
     for (;;) {
-        while (frame->rx.have < sizeof(frame->rx.buf)) {
-            const ssize_t n = recv(frame->fd, frame->rx.buf + frame->rx.have, sizeof(frame->rx.buf) - frame->rx.have, 0);
-            if (n > 0) {frame->rx.have += (uint32_t)n; continue;}
-            if (n == 0) { cleanup_client(server, frame); return;} //TODO не забыть очистить registered_clients
+        while (conn->rx.have < sizeof(conn->rx.buf)) {
+            const ssize_t n = recv(conn->fd, conn->rx.buf + conn->rx.have, sizeof(conn->rx.buf) - conn->rx.have, 0);
+            if (n > 0) {conn->rx.have += (uint32_t)n; continue;}
+            if (n == 0) { cleanup_client(server, conn); return;}
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
             perror("server: recv");
-            cleanup_client(server, frame); //TODO не забыть очистить registered_clients
+            cleanup_client(server, conn);
             return;;
         }
 
         for (;;) {
-            if (frame->rx.state == R_HEADER) {
-                if (frame->rx.have < sizeof(header_t)) break;
+            if (conn->rx.state == R_HEADER) {
+                if (conn->rx.have < sizeof(header_t)) break;
                 header_t header;
-                const int r = try_peek_header(frame->rx.buf, frame->rx.have, &header);
+                const int r = try_peek_header(conn->rx.buf, conn->rx.have, &header);
                 if (r == -1) break;
                 if (r == -2) {
                     printf("server: received bad header\n");
-                    cleanup_client(server, frame);  //TODO не забыть очистить registered_clients
+                    cleanup_client(server, conn);
                     return;
                 }
-                set_payload_from_header(frame, &header);
-                if (frame->rx.have < frame->rx.need) break;
+                server_conn_set_payload_from_header(conn, &header);
+                if (conn->rx.have < conn->rx.need) break;
             }
 
-            if (frame->rx.state == R_PAYLOAD) {
-                if (frame->rx.have < frame->rx.need) break;
+            if (conn->rx.state == R_PAYLOAD) {
+                if (conn->rx.have < conn->rx.need) break;
 
                 printf("Received payload.\n");
-                handle_packet_main(server, frame);
+                handle_packet_main(server, conn);
                 // TODO вот тут то все и обрабатывается
 
-                const uint32_t remain = frame->rx.have - frame->rx.need;
-                if (remain) memmove(frame->rx.buf, frame->rx.buf + frame->rx.need, remain);
-                frame->rx.have = remain;
-                reset_to_header(frame);
+                const uint32_t remain = conn->rx.have - conn->rx.need;
+                if (remain) memmove(conn->rx.buf, conn->rx.buf + conn->rx.need, remain);
+                server_conn_reset_to_header(conn, remain);
                 continue;
             }
             break;
         }
         break;
     }
-    if (frame->rx.have == sizeof(frame->rx.buf) && frame->rx.have < frame->rx.need) {
-        cleanup_client(server, frame);
+    if (conn->rx.have == sizeof(conn->rx.buf) && conn->rx.have < conn->rx.need) {
+        cleanup_client(server, conn);
     }
 }
 
-void handle_write(const server_t* server, frame_t* frame) {
-    while (frame->tx.head) {
-        out_chunk_t* chunk = frame->tx.head;
+void handle_write(server_t* server, server_conn_t* conn) {
+    while (conn->tx.head) {
+        out_chunk_t* chunk = conn->tx.head;
         while (chunk->off < chunk->len) {
-            const ssize_t n = send(frame->fd, chunk->data + chunk->off, chunk->len - chunk->off, MSG_NOSIGNAL);
+            const ssize_t n = send(conn->fd, chunk->data + chunk->off, chunk->len - chunk->off, MSG_NOSIGNAL);
             if (n > 0) {
                 chunk -> off += (uint32_t)n;
-                frame->tx.queued -= (size_t)n;
+                conn->tx.queued -= (size_t)n;
                 continue;
             }
             if (n < 0 && errno == EINTR) continue;
             if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return;
-            cleanup_client(server, frame);
+            cleanup_client(server, conn);
             return;
         }
-        frame->tx.head = chunk->next;
-        if (!frame->tx.head) frame->tx.tail = NULL;
+        conn->tx.head = chunk->next;
+        if (!conn->tx.head) conn->tx.tail = NULL;
         free(chunk->data);
         free(chunk);
     }
-    if (frame->tx.epollout == 1) {
-        mod_epoll_event(server->epoll_fd, frame->fd,
+    if (conn->want_epollout) {
+        mod_epoll_event(server->epoll_fd, conn->fd,
             EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLET,
-            fd_map_get(server->response, frame->fd));
-        frame->tx.epollout = 0;
+            fd_map_get(server->response, conn->fd));
+        conn->want_epollout = 0;
     }
 }
 

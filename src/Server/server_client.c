@@ -1,5 +1,5 @@
 #include "Server/server.h"
-#include "Server/frame.h"
+#include "Protocol/proto_io.h"
 #include "SupportStructure/fd_map.h"
 
 #include <unistd.h>
@@ -9,8 +9,8 @@
 
 #include <sys/epoll.h>
 
-int enqueue_message(const server_t* server, frame_t* frame, const uint8_t* buf, const uint32_t length) {
-    if (frame->tx.queued + length > frame->tx.high_watermark) return -1;
+int enqueue_message(const server_t* server, server_conn_t* conn, const uint8_t* buf, const uint32_t length) {
+    if (conn->tx.queued + length > conn->tx.high_watermark) return -1;
 
     out_chunk_t* chunk = malloc(sizeof(*chunk));
     if (!chunk) return -1;
@@ -21,23 +21,23 @@ int enqueue_message(const server_t* server, frame_t* frame, const uint8_t* buf, 
     chunk->off = 0;
     chunk->next = NULL;
 
-    if (!frame->tx.tail) frame->tx.head = frame->tx.tail = chunk;
-    else {frame->tx.tail->next = chunk; frame->tx.tail = chunk;}
+    if (!conn->tx.tail) conn->tx.head = conn->tx.tail = chunk;
+    else {conn->tx.tail->next = chunk; conn->tx.tail = chunk;}
 
-    frame->tx.queued += length;
-    handle_write(server, frame);
+    conn->tx.queued += length;
+    handle_write(server, conn);
 
-    if (frame->tx.head && frame->tx.epollout == 0) {
-        mod_epoll_event(server->epoll_fd, frame->fd,
+    if (conn->tx.head && conn->want_epollout == 0) {
+        mod_epoll_event(server->epoll_fd, conn->fd,
             EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLET | EPOLLOUT,
-            fd_map_get(server->response, frame->fd));
-        frame->tx.epollout = 1;
+            fd_map_get(server->response, conn->fd));
+        conn->want_epollout = 1;
     }
     return 0;
 }
 
-int validator_check_user(const server_t* server, const frame_t* frame) {
-    if (int_map_exists(server->registered_clients, (int)frame->user_id) == -1) return -1;
+int validator_check_user(const server_t* server, const server_conn_t* conn) {
+    if (int_map_exists(server->registered_clients, (int)conn->user_id) == -1) return -1;
     return 0;
 }
 
@@ -47,8 +47,17 @@ uint32_t get_new_client_id(server_t* server) {
     return new_client_id;
 }
 
-int unregister_client(server_t* server,const uint32_t client_id) { //TODO добавить отправку сообщения в сессию
-    return int_map_remove(server->registered_clients, (int)client_id);
+int unregister_client(server_t* server, server_conn_t* conn) {
+    if (conn->session_id != 0) {
+        session_bus_t* bus = fd_map_get(server->registered_sessions, (int)conn->session_id);
+        session_message_t* system_message = malloc(sizeof(session_message_t));
+        if (!system_message) return -1;
+        system_message->type = SYSTEM_MESSAGE;
+        system_message->data.system.type = CLIENT_UNREGISTER;
+        system_message->data.system.id.client_id = conn->user_id;
+        session_bus_push(&bus->read, system_message);
+    }
+    return int_map_remove(server->registered_clients, (int)conn->user_id);
 }
 
 int register_client(server_t* server,const uint32_t client_id, const int client_fd) {

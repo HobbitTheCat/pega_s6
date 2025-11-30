@@ -6,7 +6,7 @@
 
 #define SP_MAX_FRAME 4096
 
-typedef enum {SESSION_UNREGISTER, CLIENT_UNREGISTER} system_message_type_t;
+typedef enum {SESSION_UNREGISTER, SESSION_UNREGISTERED, CLIENT_UNREGISTER} system_message_type_t;
 typedef enum {SYSTEM_MESSAGE, USER_MESSAGE} session_message_type_t;
 
 typedef struct {

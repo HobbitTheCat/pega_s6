@@ -32,4 +32,7 @@ int send_user_response(const session_t* session, const session_message_t* msg, u
 
 int get_index_by_id(const session_t* session, uint32_t user_id);
 int get_first_free_player_place(const session_t* session);
+
+int add_player(session_t* session, int fd, uint32_t client_id);
+int remove_player(session_t* session, uint32_t player_id);
 #endif //SESSION_H

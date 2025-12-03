@@ -1,0 +1,41 @@
+sequenceDiagram
+    Client->>Serveur: Hello 
+    Serveur-->>Client : Welcome
+    Client->>Serveur: Register
+    Serveur -->> Client : SyncState
+    alt 
+        Client->>Serveur: GameJoin 
+        activate Serveur
+    else 
+        Client->>Serveur: GameCreation
+        
+    end 
+    Serveur -->> Client : GameState
+    
+    Client ->> Serveur : Ready
+    loop Partie Principal
+        Client ->> Serveur : StartGame
+        Serveur ->> Client : StartGameEnd
+        Serveur ->> Client : GameSync
+        loop Sous Partie
+            Serveur ->> Client : PhaseStart
+            Serveur ->> Serveur : Set Game
+            Serveur ->> Client : SendInfo
+            Client-->>Serveur: SendInfo
+            Serveur ->> Client : RequestExtra
+            Client-->>Serveur: RequestExtra
+            deactivate  Serveur
+            Serveur -->> Client : PhaseResult
+        end
+        Serveur -->> Client : GameEnd
+    end
+
+
+    
+
+
+
+
+
+
+

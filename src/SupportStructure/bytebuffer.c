@@ -46,7 +46,7 @@ size_t bytebuffer_remaining(const bytebuffer_t* buffer) {
     return buffer->capacity - buffer->position;
 }
 void bytebuffer_set_cursor(bytebuffer_t* buffer,const int position) {
-    if (position < 0 || position > buffer->capacity) return;
+    if (position < 0 || (size_t)position > buffer->capacity) return;
     buffer->position = position;
 }
 

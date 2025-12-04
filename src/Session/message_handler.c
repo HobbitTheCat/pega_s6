@@ -45,7 +45,7 @@ int handle_system_message(session_t* session, session_message_t* msg) {
         case PKT_SESSION_CLOSE:
             if (client_id != session->id_creator) {
                 session_send_error_packet(session, client_id, 0x01, "Unauthorized access"); break;}
-            for (int i = 0; i < session->capacity; i++) {
+            for (int i = 0; (size_t)i < session->capacity; i++) {
                 const player_t* player = &session->players[i];
                 if (player->player_id == 0) continue;
                 remove_player(session, player->player_id);

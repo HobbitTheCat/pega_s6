@@ -2,6 +2,7 @@
 #include "Protocol/proto_io.h"
 #include "SupportStructure/fd_map.h"
 
+#include <sys/random.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
@@ -9,15 +10,33 @@
 
 #include <sys/epoll.h>
 
-int enqueue_message(server_t* server, server_conn_t* conn, const uint8_t* buffer, const uint32_t total_length) {
+static const char TOKEN_ALPHABET[] =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    "abcdefghijklmnopqrstuvwxyz"
+    "0123456789";
+
+#define TOKEN_ALPHABET_LEN (sizeof(TOKEN_ALPHABET) - 1)
+
+int generate_reconnection_token(char* buf, size_t len) {
+    if (len < 2) return -1;
+
+    for (size_t i = 0; i < len - 1; i++) {
+        uint8_t rnd;
+        if (getrandom(&rnd, 1, 0) != 1) return -1;
+        buf[i] = TOKEN_ALPHABET[rnd % TOKEN_ALPHABET_LEN];
+    }
+
+    buf[len - 1] = '\0';
+    return 0;
+}
+
+int enqueue_message(server_t* server, server_conn_t* conn, uint8_t* buffer, const uint32_t total_length) {
     if (conn->tx.queued + total_length > conn->tx.high_watermark) return -1;
 
     out_chunk_t* chunk = malloc(sizeof(*chunk));
     if (!chunk) return -1;
 
-    chunk->data = malloc(total_length);
-    if (!chunk->data) {free(chunk); return -1;}
-    memcpy(chunk->data, buffer, total_length);
+    chunk->data = buffer;
     chunk->len = total_length;
     chunk->off = 0;
     chunk->next = NULL;
@@ -48,28 +67,84 @@ int send_packet(server_t* server, server_conn_t* conn, const uint8_t type, const
     if (protocol_header_encode(header, type, payload_length) < 0) {free(buff); return -1;}
 
     if (payload_length > 0) memcpy(buff + sizeof(header_t), payload, payload_length);
-    const int result = enqueue_message(server, conn, buff, total_length);
-    free(buff);
-    return result;
+    return enqueue_message(server, conn, buff, total_length);
 }
 
 uint32_t get_new_client_id(server_t* server) {
-    uint32_t new_client_id = fd_map_get_first_null_id(server->registered_clients, (int)server->next_player_id);
-    if (new_client_id == -1) new_client_id = server->next_player_id++;
+    int new_client_id = fd_map_get_first_null_id(server->registered_players, (int)server->next_player_id);
+    if (new_client_id == -1) new_client_id = (int)server->next_player_id++;
     return new_client_id;
 }
 
 int register_client(server_t* server, server_conn_t* conn) {
     const uint32_t new_client_id = get_new_client_id(server);
-    if (fd_map_set(server->registered_clients, (int)new_client_id, conn) == -1) return -1;
-    conn->state = CONN_STATE_LOBBY;
-    conn->user_id = new_client_id;
+    server_player_t* player = malloc(sizeof(*player));
+    if (!player) return -1;
+    memset(player, 0, sizeof(*player));
+
+    player->conn = conn;
+    player->user_id = new_client_id;
+    player->session_id = 0;
+    player->state = PLAYER_STATE_LOBBY;
+
+    const size_t token_len = 32;
+    player->reconnection_token = malloc(token_len);
+    if (!player->reconnection_token) {free(player); return -1;}
+    if (generate_reconnection_token(player->reconnection_token, token_len) != 0) {
+        free(player->reconnection_token);
+        free(player);
+        return -1;
+    }
+
+    fd_map_set(server->registered_players, (int)new_client_id, player);
+
+    conn->state = CONN_STATE_CONNECT;
+    conn->player = player;
     return 0;
 }
 
-int unregister_client(server_t* server, server_conn_t* conn) {
-    if (conn->session_id != 0) send_system_message_to_session(server, conn->session_id, conn->user_id, USER_UNREGISTER);
-    fd_map_remove(server->registered_clients, (int)conn->user_id);
-    conn->state = CONN_STATE_HANDSHAKE;
+
+int disconnect_client(server_t* server, server_conn_t* conn) {
+    if (!conn->player) return -1;
+    conn->player->conn = NULL;
+    conn->player->state = PLAYER_STATE_DISCONNECT;
+    if (conn->player->session_id != 0) {
+        send_system_message_to_session(server, conn->player->session_id, conn->player->user_id, USER_LEFT);
+    }
+    conn->player = NULL;
+    return 0;
+}
+
+int reconnect_client(server_t* server, server_conn_t* conn, const uint32_t client_id, const char* reconnection_token) {
+    server_player_t* player = fd_map_get(server->registered_players, (int)client_id);
+    if (!player) return -1; // player not found
+    if (!player->reconnection_token || !reconnection_token ||
+    strcmp(player->reconnection_token, reconnection_token) != 0) {
+        printf("%s != %s\n", player->reconnection_token, reconnection_token);
+        return -2;
+    }
+    if (player->conn && player->conn != conn) {cleanup_connection(server, player->conn);}
+    if (conn->player && conn->player != player) {conn->player->state = PLAYER_STATE_DISCONNECT; conn->player->conn = NULL;}
+    conn->state = CONN_STATE_CONNECT;
+    if (player->session_id != 0) player->state = PLAYER_STATE_IN_GAME;
+    else player->state = PLAYER_STATE_LOBBY;
+    player->conn = conn;
+    conn->player = player;
+    return 0;
+}
+
+int unregister_client(server_t* server, const uint32_t player_id) {
+    server_player_t* player = fd_map_get(server->registered_players, (int)player_id);
+    if (!player) return -1;
+    if (player->conn) {
+        player->conn->state = CONN_STATE_HANDSHAKE;
+        player->conn->player = NULL;
+    }
+    if (player->session_id != 0) {
+        send_system_message_to_session(server, player->session_id, player->user_id, USER_UNREGISTER);
+    }
+    fd_map_remove(server->registered_players, (int)player_id);
+    free(player->reconnection_token);
+    free(player);
     return 0;
 }

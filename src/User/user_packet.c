@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -23,7 +24,7 @@ int user_enqueue_message(user_t* user, const uint8_t* buffer, const uint32_t tot
     tx->queued += total_length;
     user_handle_write(user);
     if (tx->head && user->want_pollout == 0) {
-        user->fds[0].events |= POLLOUT;
+        user->fds[1].events |= POLLOUT;
         user->want_pollout = 1;
     }
     return 0;
@@ -47,4 +48,42 @@ int user_send_packet(user_t* user, uint8_t type, const void* payload, const uint
 
 int user_send_simple(user_t* user, const uint8_t type) {
     return user_send_packet(user, type, NULL, 0);
+}
+
+int user_send_reconnect(user_t* user) {
+    const char* token = user->reconnection_token;
+    const size_t token_length = strlen(token);
+    const size_t header_part = sizeof(pkt_reconnect_payload_t);
+    const size_t payload_length = token_length + header_part;
+    if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) return -1;
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+    pkt_reconnect_payload_t* packet = (pkt_reconnect_payload_t*)payload;
+    packet->user_id = user->client_id;
+    packet->token_length = token_length;
+    if (token_length > 0) memcpy((uint8_t*)(packet + 1), token, token_length);
+    const int result = user_send_packet(user, PKT_RECONNECT, payload, payload_length);
+    free(payload);
+    return result;
+}
+
+int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
+    if (payload_length < sizeof(pkt_sync_state_payload_t)) {
+        fprintf(stderr, "Client: bad SYNC_STATE length\n"); return -1;
+    }
+    const pkt_sync_state_payload_t* sync_state = (pkt_sync_state_payload_t*) payload;
+    const uint16_t token_length = sync_state->token_length;
+    const size_t header_part = sizeof(pkt_sync_state_payload_t);
+    if (payload_length < header_part + token_length) {
+        fprintf(stderr, "Client: truncated SYNC_STATE token\n"); return -1;
+    }
+    const uint8_t* token_ptr = (const uint8_t*)(sync_state + 1);
+    user->client_id = sync_state->user_id;
+    if (token_length >= sizeof(user->reconnection_token)) {
+        fprintf(stderr, "Client: reconnect token too long\n"); return -1;
+    }
+    memcpy(user->reconnection_token, token_ptr, token_length);
+    user->reconnection_token[token_length] = '\0';
+    printf("Token %s\n", user->reconnection_token);
+    return 0;
 }

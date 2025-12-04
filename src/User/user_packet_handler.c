@@ -10,13 +10,16 @@
 int user_handle_packet(user_t* user, const uint8_t type, const uint8_t* payload, const uint16_t payload_length) {
     switch (type) {
         case PKT_WELCOME:
-            user_send_simple(user, PKT_REGISTER); break;
+            if (user->client_id == 0) {
+                user_send_simple(user, PKT_REGISTER);
+            }
+            // else user_send_reconnect(user); // PKT_RECONNECT
+            return 0;
         case PKT_SYNC_STATE:
-            printf("Sync State acquire\n"); return 0;
+            return client_handle_sync_state(user, payload, payload_length);
         default:
             printf("Получен пакет %d\n", type); return 0;
     }
-    return 0;
 }
 
 void user_handle_stdin(user_t* user) {
@@ -29,5 +32,15 @@ void user_handle_stdin(user_t* user) {
     }
     if (strncmp(buf, "quit_s", 6) == 0) {
         user_send_simple(user, PKT_SESSION_LEAVE);
+    }
+    if (strncmp(buf, "unreg", 5) == 0) {
+        user_send_simple(user, PKT_UNREGISTER);
+    }
+    if (strncmp(buf, "dconn", 5) == 0) {
+        printf("Dconn\n");
+        user_close_connection(user);
+    }
+    if (strncmp(buf, "rconn", 5) == 0) {
+        user_send_reconnect(user);
     }
 }

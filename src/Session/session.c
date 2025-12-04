@@ -116,7 +116,7 @@ void* session_main(void* arg) {
 }
 
 int get_index_by_id(const session_t* session, const uint32_t user_id) {
-    for (int i = 0; i < session->capacity; i++) {
+    for (int i = 0; (size_t)i < session->capacity; i++) {
         if (session->players[i].player_id == user_id) {
             return i;
         }
@@ -124,7 +124,7 @@ int get_index_by_id(const session_t* session, const uint32_t user_id) {
     return -1;
 }
 int get_first_free_player_place(const session_t* session) {
-    for (int i = 0; i < session->capacity; i++) {
+    for (int i = 0; (size_t)i < session->capacity; i++) {
         if (session->players[i].player_id == 0) {
             return i;
         }
@@ -147,6 +147,9 @@ int add_player(session_t* session, const uint32_t client_id) {
 int remove_player(session_t* session, const uint32_t client_id) {
     const int player_index = get_index_by_id(session, client_id);
     if (player_index == -1) return -1;
+    if (client_id == session->id_creator && session->number_players > 1)
+        for (int i = 0; (size_t)i < session->capacity; i++)
+            if (session->players[i].player_id != 0) {session->id_creator = session->players[i].player_id; break;}
     session->players[player_index].player_id = 0;
     session->number_players--;
     return 0;

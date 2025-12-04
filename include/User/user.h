@@ -8,7 +8,12 @@
 
 #include "Protocol/proto_io.h"
 
+#define RECONNECT_TOKEN_MAX 256
+
 typedef struct {
+    uint32_t client_id;
+    char reconnection_token[RECONNECT_TOKEN_MAX];
+
     int sockfd;
     struct sockaddr_in server_addr;
 
@@ -26,8 +31,11 @@ int user_init(user_t* user);
 void user_cleanup(user_t* user);
 
 int user_connect(user_t* user, const char* host, uint16_t port);
+void user_close_connection(user_t* user);
 
-void user_main_loop(user_t* user);
+// void user_main_loop(user_t* user);
+void user_run(user_t* user, const char* host, uint16_t port);
+int user_loop_once(user_t* user);
 
 int user_handle_read(user_t* user);
 void user_handle_stdin(user_t* user);
@@ -41,5 +49,7 @@ int user_handle_packet(user_t* user, uint8_t type, const uint8_t* payload, uint1
 
 // Packets
 int user_send_simple(user_t* user, uint8_t type);
+int user_send_reconnect(user_t* user);
+int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_t payload_length);
 
 #endif //USER_H

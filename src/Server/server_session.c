@@ -40,8 +40,8 @@ int send_system_message_to_session(const server_t* server, const uint32_t sessio
 }
 
 uint32_t get_new_session_id(server_t* server) {
-    uint32_t new_session_id = fd_map_get_first_null_id(server->registered_sessions, (int)server->next_session_id);
-    if (new_session_id == -1) new_session_id = server->next_session_id++;
+    int new_session_id = fd_map_get_first_null_id(server->registered_sessions, (int)server->next_session_id);
+    if (new_session_id == -1) new_session_id = (int)server->next_session_id++;
     return new_session_id;
 }
 
@@ -94,22 +94,22 @@ void handle_bus_message(server_t* server, const response_t* response) {
             printf("Received return message type\n");
             print_session_message(message);
             if (message->type == USER_MESSAGE) {
-                server_conn_t* conn = fd_map_get(server->registered_clients, (int)message->data.user.client_id);
-                send_packet(server, conn, message->data.user.packet_type, message->data.user.buf, message->data.user.payload_length);
+                const server_player_t* player = fd_map_get(server->registered_players, (int)message->data.user.client_id);
+                if (player && player->conn) send_packet(server, player->conn, message->data.user.packet_type, message->data.user.buf, message->data.user.payload_length);
             } else {
                 switch (message->data.system.type) {
                     case SESSION_UNREGISTER:
                         unregister_session(server,  message->data.system.session_id);
                         break;
                     case USER_CONNECTED:
-                        server_conn_t* conn = fd_map_get(server->registered_clients, (int)message->data.system.user_id);
+                        server_player_t* conn = fd_map_get(server->registered_players, (int)message->data.system.user_id);
                         conn->session_id = message->data.system.session_id;
-                        conn->state = CONN_STATE_IN_GAME;
+                        conn->state = PLAYER_STATE_IN_GAME;
                         break;
                     case USER_DISCONNECTED:
-                        server_conn_t* disconn = fd_map_get(server->registered_clients, (int)message->data.system.user_id);
+                        server_player_t* disconn = fd_map_get(server->registered_players, (int)message->data.system.user_id);
                         disconn->session_id = 0;
-                        disconn->state = CONN_STATE_LOBBY;
+                        disconn->state = PLAYER_STATE_LOBBY;
                         break;
                     default:
                         printf("Unknown message type %d\n", message->data.system.type);

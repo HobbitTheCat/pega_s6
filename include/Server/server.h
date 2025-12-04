@@ -14,7 +14,7 @@ typedef struct {
 
     fd_map_t* response;            // client_fd -> response
 
-    fd_map_t* registered_clients;  // client_id -> server_conn
+    fd_map_t* registered_players;  // player_id -> server_player
     fd_map_t* registered_sessions; // session_id -> session
     uint32_t next_player_id;
     uint32_t next_session_id;
@@ -40,7 +40,7 @@ int del_epoll_event(int epoll_fd, int fd);
 
 int init_server(server_t* server, int port);
 void cleanup_server(server_t* server);
-void cleanup_client(server_t* server, server_conn_t* conn);
+void cleanup_connection(server_t* server, server_conn_t* conn);
 
 void* server_main(void* arg);
 
@@ -51,7 +51,7 @@ void handle_accept(const server_t* server);
 void handle_read(server_t* server, server_conn_t* conn);
 void handle_write(server_t* server, server_conn_t* conn);
 
-int enqueue_message(server_t* server, server_conn_t* conn, const uint8_t* buffer, uint32_t total_length) ;
+int enqueue_message(server_t* server, server_conn_t* conn, uint8_t* buffer, uint32_t total_length) ;
 int send_packet(server_t* server, server_conn_t* conn, uint8_t type, const void* payload, uint16_t payload_length);
 
 void handle_packet_main(server_t* server, server_conn_t* conn, uint8_t packet_type, const uint8_t* payload, uint16_t payload_length);
@@ -65,11 +65,16 @@ int unregister_session(const server_t* server, uint32_t session_id);
 uint32_t get_new_session_id(server_t* server);
 
 // Client manager
+int generate_reconnection_token(char* buf, size_t len);
 int register_client(server_t* server, server_conn_t* conn);
-int unregister_client(server_t* server, server_conn_t* conn);
+int disconnect_client(server_t* server, server_conn_t* conn);
+int reconnect_client(server_t* server, server_conn_t* conn, const uint32_t client_id, const char* reconnection_token);
+int unregister_client(server_t* server, uint32_t player_id);
 uint32_t get_new_client_id(server_t* server);
 
 // Packet
 int send_simple_packet(server_t* server, server_conn_t* conn, uint8_t type);
 int send_error_packet(server_t* server, server_conn_t* conn, uint8_t error_code, const char* error_message);
+int send_sync_state(server_t* server, server_conn_t* conn);
+int handle_reconnect_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, const uint16_t payload_length);
 #endif //SERVER_H

@@ -13,23 +13,24 @@ typedef enum {
     PKT_HELLO = 3,
     PKT_WELCOME = 4,
     PKT_REGISTER = 5,
-    PKT_UNREGISTER = 6,
-    PKT_SYNC_STATE = 7,
+    PKT_RECONNECT = 6,
+    PKT_UNREGISTER = 7,
+    PKT_SYNC_STATE = 8,
 
-    PKT_SESSION_JOIN = 8,
-    PKT_SESSION_LEAVE = 9,
-    PKT_SESSION_CREATE = 10,
-    PKT_SESSION_CLOSE = 11,
-    PKT_SESSION_STATE = 12,        // <-
+    PKT_SESSION_JOIN = 9,
+    PKT_SESSION_LEAVE = 10,
+    PKT_SESSION_CREATE = 11,
+    PKT_SESSION_CLOSE = 12,
+    PKT_SESSION_STATE = 13,        // <-
 
-    PKT_READY = 13,             // ->
-    PKT_START_SESSION = 14,        // ->
-    PKT_START_SESSION_RETURN = 15, // <-
-    PKT_INFO = 16,
-    PKT_REQUEST_EXTRA = 17,
-    PKT_RESPONSE_EXTRA = 18,
-    PKT_PHASE_RESULT = 19,
-    PKT_SESSION_END = 20,
+    PKT_READY = 14,             // ->
+    PKT_START_SESSION = 15,        // ->
+    PKT_START_SESSION_RETURN = 16, // <-
+    PKT_INFO = 17,
+    PKT_REQUEST_EXTRA = 18,
+    PKT_RESPONSE_EXTRA = 19,
+    PKT_PHASE_RESULT = 20,
+    PKT_SESSION_END = 21,
     // ...
     PKT_ERROR = 255
 } packet_type_t;
@@ -57,5 +58,23 @@ typedef struct {
     uint16_t message_length;
 } pkt_error_payload_t;
 #pragma pack(pop)
+
+
+// PKT_SYNC_STATE
+#pragma pack(push, 1)
+typedef struct {
+    uint32_t user_id;
+    uint16_t token_length;
+} pkt_sync_state_payload_t;
+#pragma pack(pop)
+
+// PKT_RECONNECT
+#pragma pack(push, 1)
+typedef struct {
+    uint32_t user_id;
+    uint16_t token_length;
+} pkt_reconnect_payload_t;
+#pragma pack(pop)
+
 
 #endif //PROTOCOL_H

@@ -8,6 +8,9 @@ void server_conn_init(server_conn_t* conn, const int fd) {
 
     rx_init(&conn->rx);
     tx_init(&conn->tx);
+
+    conn->state = CONN_STATE_INIT;
+    conn->player = NULL;
     conn->want_epollout = 0;
 }
 

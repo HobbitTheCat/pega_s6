@@ -13,8 +13,6 @@
 #include <sys/epoll.h>
 #include <netinet/tcp.h>
 
-#include "session.h"
-
 int create_listen_socket(const int port) {
     const int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {perror("server_init: socket"); return -1;}
@@ -101,7 +99,7 @@ int init_server(server_t* server, const int port) {
 
     server->response = fd_map_create(256);
     server->registered_sessions = fd_map_create(32);
-    server->registered_clients = fd_map_create(256);
+    server->registered_players = fd_map_create(256);
     server->next_player_id = 1;
     server->next_session_id = 1;
 
@@ -123,14 +121,21 @@ void cleanup_server(server_t* server) {
         response_t* response = fd_map_get(server->response, fd);
         if (!response) continue;
         switch (response->type) {
-            case P_CLIENT: cleanup_client(server, response->ptr); break;
+            case P_CLIENT: cleanup_connection(server, response->ptr); break;
             default:
                 fd_map_remove(server->response, fd);
                 free(response);
         }
     }
     fd_map_destroy(server->response);
-    fd_map_destroy(server->registered_clients);
+
+    for (int player_id = 1; player_id < server->next_player_id; player_id++) {
+        server_player_t* player = fd_map_get(server->registered_players, (int)player_id);
+        if (!player) continue;
+        free(player->reconnection_token);
+        free(player);
+    }
+    fd_map_destroy(server->registered_players);
     fd_map_destroy(server->registered_sessions);
 
     del_epoll_event(server->epoll_fd, server->listen_fd);
@@ -138,9 +143,9 @@ void cleanup_server(server_t* server) {
     close(server->epoll_fd);
 }
 
-void cleanup_client(server_t* server, server_conn_t* conn) {
+void cleanup_connection(server_t* server, server_conn_t* conn) {
     if (!conn) return;
-    if (conn->user_id != 0) unregister_client(server, conn);
+    if (conn->player != NULL) disconnect_client(server, conn);
     del_epoll_event(server->epoll_fd, conn->fd);
     shutdown(conn->fd, SHUT_RDWR);
     close(conn->fd);
@@ -156,9 +161,9 @@ void cleanup_client(server_t* server, server_conn_t* conn) {
 void* server_main(void* arg) {
     server_t* server = arg;
     struct epoll_event events[MAX_EVENTS];
-
+    // TODO если во время внутреннего цикла первым сообщением освобождается клиент а вторым приходит ему лично то происходит NULL PINTER EXCEPTION решение - видимо стэк
     while (server->running) {
-        int const n = epoll_wait(server->epoll_fd, events, MAX_EVENTS, -1);
+        int const n = epoll_wait(server->epoll_fd, events, MAX_EVENTS, 20); // TODO убрать 20
         if (n == -1){ if (errno == EINTR) continue; perror("server: epoll_wait"); cleanup_server(server); break;}
 
         for (int i = 0; i < n; i++) {
@@ -168,7 +173,8 @@ void* server_main(void* arg) {
 
             if (event & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
                 if (response->type == P_CLIENT) {
-                    cleanup_client(server, response->ptr);
+                    printf("Вызываем тут очистку 1\n");
+                    cleanup_connection(server, response->ptr);
                 }
                 continue;
             }
@@ -222,10 +228,11 @@ void handle_read(server_t* server, server_conn_t* conn) {
         while (rx->have < sizeof(rx->buf)) {
             const ssize_t n = recv(conn->fd, rx->buf + rx->have, sizeof(rx->buf) - rx->have, 0);
             if (n > 0) {rx->have += n; continue;}
-            if (n == 0) {cleanup_client(server, conn); return;}
+            if (n == 0) {printf("Вызываем тут очистку 2\n"); cleanup_connection(server, conn); return;}
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            perror("server: recv"); cleanup_client(server, conn); return;
+            printf("Вызываем тут очистку 3\n");
+            perror("server: recv"); cleanup_connection(server, conn); return;
         }
 
         for (;;) {
@@ -237,7 +244,7 @@ void handle_read(server_t* server, server_conn_t* conn) {
             if (r == 0) break;
             if (r == -1) {
                 printf("server: received bad packet\n");
-                cleanup_client(server, conn);
+                cleanup_connection(server, conn);
                 return;
             }
             handle_packet_main(server, conn, header.type, payload, payload_len);
@@ -245,7 +252,7 @@ void handle_read(server_t* server, server_conn_t* conn) {
         if (rx->have < sizeof(rx->buf)) break;
         if (rx->have == sizeof(rx->buf)) {
             printf("server: rx buffer overflow / protocol desync\n");
-            cleanup_client(server, conn);
+            cleanup_connection(server, conn);
         }
         break;
     }
@@ -263,7 +270,8 @@ void handle_write(server_t* server, server_conn_t* conn) {
             }
             if (n < 0 && errno == EINTR) continue;
             if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return;
-            cleanup_client(server, conn);
+            printf("Вызываем тут очистку 5\n");
+            cleanup_connection(server, conn);
             return;
         }
         conn->tx.head = chunk->next;

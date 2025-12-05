@@ -10,9 +10,10 @@
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
 
-int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity) {
+int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity, const uint8_t is_visible) {
     session->capacity = capacity;
     session->number_players = 0;
+    session->is_visible = is_visible;
     session->id = session_id;
     session->unregister_send = 1;
     session->timer_fd = -1;

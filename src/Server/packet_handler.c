@@ -20,13 +20,20 @@ void handle_packet_main(server_t* server, server_conn_t* conn, const uint8_t pac
     if (conn->player == NULL) { send_error_packet(server, conn, 0x03, "User is not registered"); return;}
     const server_player_t* player = conn->player;
     switch (packet_type) {
+        case PKT_GET_SESSION_LIST:
+            send_session_list(server, conn); break;
         case PKT_UNREGISTER:
             unregister_client(server, player->user_id);
-            send_simple_packet(server, conn, PKT_SYNC_STATE); break;
+            send_simple_packet(server, conn, PKT_UNREGISTER_RETURN); break;
         case PKT_SESSION_CREATE:
             if (player->session_id != 0) { send_error_packet(server, conn, 0x04, "Session already exist"); break;}
-            const uint32_t session_id = create_new_session(server, 4);
+            const uint32_t session_id = create_new_session(server, 4, 1);
             send_message_to_session(server, session_id, player->user_id, PKT_SESSION_JOIN, payload, payload_length);
+            break;
+        case PKT_SESSION_JOIN:
+            const uint32_t id = handle_session_join_packet(server, conn, payload, payload_length);
+            if (id == 0) break;
+            send_message_to_session(server, id, player->user_id, PKT_SESSION_JOIN, payload, payload_length);
             break;
         default:
             if (player->session_id == 0) { send_error_packet(server, conn, 0x05, "Session not found"); break;}

@@ -14,6 +14,7 @@ typedef struct {
 
     player_t* players;
     uint32_t id_creator;
+    uint8_t is_visible;
     size_t capacity;
     size_t number_players;
 
@@ -25,7 +26,14 @@ typedef struct {
     void* game_state;
 } session_t;
 
-int init_session(session_t* session, uint32_t session_id, uint8_t capacity);
+typedef struct {
+    session_bus_t* bus;
+    uint8_t is_visible;
+    size_t capacity;
+    size_t number_players;
+} server_session_t;
+
+int init_session(session_t* session, uint32_t session_id, uint8_t capacity, uint8_t is_visible);
 void send_unregister(session_t* session);
 void cleanup_session(session_t* session);
 

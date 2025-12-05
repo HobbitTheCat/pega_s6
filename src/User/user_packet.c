@@ -67,6 +67,19 @@ int user_send_reconnect(user_t* user) {
     return result;
 }
 
+int user_send_join_session(user_t* user, const uint32_t session_id) {
+    const size_t payload_length = sizeof(pkt_session_join_payload_t);
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+
+    pkt_session_join_payload_t* packet = (pkt_session_join_payload_t*)payload;
+    packet->session_id = session_id;
+
+    const int result = user_send_packet(user, PKT_SESSION_JOIN, payload, payload_length);
+    free(payload);
+    return result;
+}
+
 int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
     if (payload_length < sizeof(pkt_sync_state_payload_t)) {
         fprintf(stderr, "Client: bad SYNC_STATE length\n"); return -1;
@@ -85,5 +98,25 @@ int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_
     memcpy(user->reconnection_token, token_ptr, token_length);
     user->reconnection_token[token_length] = '\0';
     printf("Token %s\n", user->reconnection_token);
+    return 0;
+}
+
+int client_handle_session_list(const uint8_t* payload, const uint16_t payload_length) {
+    if (payload_length < sizeof(pkt_session_list_payload_t)) {
+        fprintf(stderr, "Client: bad SESSION_LIST length\n"); return -1;
+    }
+    const pkt_session_list_payload_t* session_list = (pkt_session_list_payload_t*) payload;
+    const uint16_t count = session_list->count;
+    const size_t expected = sizeof(pkt_session_list_payload_t) + (size_t)count * sizeof(uint32_t);
+    if (payload_length < expected) {
+        fprintf(stderr, "Client: bad SESSION_LIST length\n"); return -1;
+    }
+    const uint32_t* ids = (const uint32_t*) (session_list + 1);
+    printf("Session ids: ");
+    for (uint16_t i = 0; i < count; i++) {
+        const uint32_t session_id = ids[i];
+        printf("%d, ", session_id);
+    }
+    printf(" \n");
     return 0;
 }

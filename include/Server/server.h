@@ -60,8 +60,9 @@ void handle_packet_main(server_t* server, server_conn_t* conn, uint8_t packet_ty
 int send_message_to_session(const server_t* server, uint32_t session_id, uint32_t user_id, uint8_t packet_type, const uint8_t* payload, uint16_t payload_length);
 int send_system_message_to_session(const server_t* server, uint32_t session_id, uint32_t user_id, system_message_type_t type);
 void handle_bus_message(server_t* server, const response_t* response);
-int create_new_session(server_t* server, uint8_t number_of_players);
+int create_new_session(server_t* server, uint8_t number_of_players, uint8_t is_visible);
 int unregister_session(const server_t* server, uint32_t session_id);
+int get_available_sessions(const server_t* server, uint32_t* session_list);
 uint32_t get_new_session_id(server_t* server);
 
 // Client manager
@@ -76,5 +77,8 @@ uint32_t get_new_client_id(server_t* server);
 int send_simple_packet(server_t* server, server_conn_t* conn, uint8_t type);
 int send_error_packet(server_t* server, server_conn_t* conn, uint8_t error_code, const char* error_message);
 int send_sync_state(server_t* server, server_conn_t* conn);
-int handle_reconnect_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, const uint16_t payload_length);
+int send_session_list(server_t* server, server_conn_t* conn);
+
+int handle_reconnect_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, uint16_t payload_length);
+uint32_t handle_session_join_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, uint16_t payload_length);
 #endif //SERVER_H

@@ -57,6 +57,30 @@ int send_sync_state(server_t* server, server_conn_t* conn) {
     return result;
 }
 
+int send_session_list(server_t* server, server_conn_t* conn) {
+    uint32_t session_ids[1024];
+    size_t session_count = get_available_sessions(server, session_ids);
+
+    const size_t header_part = sizeof(pkt_session_list_payload_t);
+    const size_t max_ids_by_size = (PROTOCOL_MAX_SIZE - sizeof(header_t));
+    if (session_count > max_ids_by_size) session_count = max_ids_by_size;
+    const size_t payload_length = header_part + session_count * sizeof(uint32_t);
+    if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) return -1;
+
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+    pkt_session_list_payload_t* pkt = (pkt_session_list_payload_t*)payload;
+    pkt->count = session_count;
+    uint32_t* out_ids = (uint32_t*)(pkt + 1);
+    for (size_t i = 0; i < session_count; i++) {
+        out_ids[i] = session_ids[i];
+    }
+
+    const int result = send_packet(server, conn, PKT_SESSION_LIST, payload, payload_length);
+    free(payload);
+    return result;
+}
+
 int handle_reconnect_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, const uint16_t payload_length) {
     if (payload_length < sizeof(pkt_reconnect_payload_t)) {
         send_error_packet(server, conn, 0x21, "Bad reconnect length");
@@ -92,4 +116,14 @@ int handle_reconnect_packet(server_t* server, server_conn_t* conn, const uint8_t
     }
     send_sync_state(server, conn);
     return 0;
+}
+
+uint32_t handle_session_join_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, const uint16_t payload_length) {
+    if (payload_length < sizeof(pkt_session_join_payload_t)) {
+        send_error_packet(server, conn, 0x26, "Bad session join payload");
+        return 0;
+    }
+    const pkt_session_join_payload_t* pkt = (const pkt_session_join_payload_t*)payload;
+    const uint32_t session_id = pkt->session_id;
+    return session_id;
 }

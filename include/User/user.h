@@ -38,6 +38,7 @@ void user_run(user_t* user, const char* host, uint16_t port);
 int user_loop_once(user_t* user);
 
 int user_handle_read(user_t* user);
+void user_execute_command(user_t* user, const char* cmd);
 void user_handle_stdin(user_t* user);
 int user_handle_write(user_t* user);
 
@@ -50,6 +51,9 @@ int user_handle_packet(user_t* user, uint8_t type, const uint8_t* payload, uint1
 // Packets
 int user_send_simple(user_t* user, uint8_t type);
 int user_send_reconnect(user_t* user);
-int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_t payload_length);
+int user_send_join_session(user_t* user, const uint32_t session_id);
+
+int client_handle_sync_state(user_t* user, const uint8_t* payload, uint16_t payload_length);
+int client_handle_session_list(const uint8_t* payload, uint16_t payload_length);
 
 #endif //USER_H

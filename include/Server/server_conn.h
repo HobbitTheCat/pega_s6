@@ -20,7 +20,6 @@ typedef enum {
 struct server_player_s;
 struct server_conn_s;
 
-
 typedef struct server_player_s {
     player_state_t state;
 

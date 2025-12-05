@@ -1,5 +1,6 @@
 #include "Server/server.h"
 #include "Server/server_conn.h"
+#include "Session/session.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -117,6 +118,12 @@ void cleanup_server(server_t* server) {
     if (!server) return;
     server->running = 0;
 
+    for (int session_id = 1; session_id < server->next_session_id; session_id++) {
+        server_session_t* session_info = fd_map_get(server->registered_sessions, session_id);
+        if (!session_info) continue;
+        unregister_session(server, session_id);
+    } fd_map_destroy(server->registered_sessions);
+
     for (int fd = 0; fd < server->response->capacity; fd++) {
         response_t* response = fd_map_get(server->response, fd);
         if (!response) continue;
@@ -136,8 +143,6 @@ void cleanup_server(server_t* server) {
         free(player);
     }
     fd_map_destroy(server->registered_players);
-    fd_map_destroy(server->registered_sessions);
-
     del_epoll_event(server->epoll_fd, server->listen_fd);
     close(server->listen_fd);
     close(server->epoll_fd);
@@ -163,7 +168,7 @@ void* server_main(void* arg) {
     struct epoll_event events[MAX_EVENTS];
     // TODO если во время внутреннего цикла первым сообщением освобождается клиент а вторым приходит ему лично то происходит NULL PINTER EXCEPTION решение - видимо стэк
     while (server->running) {
-        int const n = epoll_wait(server->epoll_fd, events, MAX_EVENTS, 20); // TODO убрать 20
+        int const n = epoll_wait(server->epoll_fd, events, MAX_EVENTS, -1); // TODO убрать 20
         if (n == -1){ if (errno == EINTR) continue; perror("server: epoll_wait"); cleanup_server(server); break;}
 
         for (int i = 0; i < n; i++) {

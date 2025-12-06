@@ -30,11 +30,12 @@ typedef enum {
     PKT_READY = 15,             // ->
     PKT_START_SESSION = 16,        // ->
     PKT_START_SESSION_RETURN = 17, // <-
-    PKT_INFO = 18,
-    PKT_REQUEST_EXTRA = 19,
-    PKT_RESPONSE_EXTRA = 20,
-    PKT_PHASE_RESULT = 21,
-    PKT_SESSION_END = 22,
+    PKT_SESSION_INFO = 18,
+    PKT_INFO_RETURN = 19,
+    PKT_REQUEST_EXTRA = 20,
+    PKT_RESPONSE_EXTRA = 21,
+    PKT_PHASE_RESULT = 22,
+    PKT_SESSION_END = 23,
     // ...
     PKT_ERROR = 255
 } packet_type_t;
@@ -92,6 +93,31 @@ typedef struct {
 typedef struct {
     uint32_t session_id;
 } pkt_session_join_payload_t;
+#pragma pack(pop)
+
+// PKT_SESSION_STATE
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t nbrLign;
+    uint8_t nbrCardsLign;
+    uint8_t nbrCardsPlayer;
+} pkt_session_state_payload_t;
+#pragma pack(pop)
+
+
+// PKT_SESSION_INFO
+#pragma pack(push, 1)
+typedef struct {
+    int32_t  num;
+    int32_t  numberHead;
+    uint32_t client_id;
+} pkt_card_t;
+#pragma pack(pop)
+
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t hand_count;
+} pkt_session_info_payload_t;
 #pragma pack(pop)
 
 #endif //PROTOCOL_H

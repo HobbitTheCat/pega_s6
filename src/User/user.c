@@ -88,36 +88,6 @@ void user_close_connection(user_t* user) {
     user->want_pollout = 0;
 }
 
-
-// void user_main_loop(user_t* user) {
-//     if (!user || user->sockfd < 0) return;
-//
-//     while (user->is_running) {
-//         const int ret = poll(user->fds, user->nfds, -1);
-//         if (ret < 0) {
-//             if (errno == EINTR) continue;
-//             perror("Client: poll"); break;
-//         }
-//
-//         if (user->fds[0].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL)) {
-//             user_handle_stdin(user); //TODO переписать для стандартного ввода
-//         }
-//
-//         if (user->fds[1].revents & (POLLIN | POLLERR | POLLHUP | POLLNVAL | POLLOUT)) {
-//             if (user->fds[1].revents & POLLIN) {
-//                 if (user_handle_read(user) < 0) break;
-//             }
-//             if (user->fds[1].revents & POLLOUT) {
-//                 if (user_handle_write(user) < 0) break;
-//                 if (!user->tx.head) { user->fds[1].events &= ~POLLIN; user->want_pollout = 0;}
-//             }
-//             if (user->fds[1].revents & (POLLERR | POLLHUP | POLLNVAL)) {
-//                 perror("Client: unknown error"); break;
-//             }
-//         }
-//     }
-// }
-
 int user_loop_once(user_t* user) {
     while (user->is_running && user->sockfd >= 0) {
         const int ret = poll(user->fds, user->nfds, -1);
@@ -136,7 +106,7 @@ int user_loop_once(user_t* user) {
 
             if (user->fds[1].revents & POLLIN) {
                 if (user_handle_read(user) < 0)
-                    return -1; // разрыв соединения
+                    return -1;
             }
             if (user->fds[1].revents & POLLOUT) {
                 if (user_handle_write(user) < 0)
@@ -253,6 +223,22 @@ int user_handle_write(user_t* user) {
         user->fds[1].events &= ~POLLOUT;
         user->want_pollout = 0;
     }
+    return 0;
+}
+int user_join_session(user_t* user, const uint8_t nb_line, const uint8_t nb_card_line, const uint8_t nb_card_player) {
+    user->nb_line = nb_line;
+    user->nb_card_line = nb_card_line;
+    user->nb_card_player = nb_card_player;
+    user->game_initialized = 1;
+
+    return 0;
+}
+int user_quit_session(user_t* user) {
+    user->nb_line = 0;
+    user->nb_card_line = 0;
+    user->nb_card_player = 0;
+    user->game_initialized = 0;
+
     return 0;
 }
 

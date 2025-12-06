@@ -7,6 +7,7 @@
 #include <stdatomic.h>
 
 #include "SupportStructure/session_bus.h"
+#include "Session/Game/game.h"
 #include "Session/player.h"
 
 typedef struct {
@@ -23,7 +24,7 @@ typedef struct {
     int unregister_send;
     _Atomic int running;
 
-    void* game_state;
+    game_t* game;
 } session_t;
 
 typedef struct {
@@ -33,15 +34,16 @@ typedef struct {
     size_t number_players;
 } server_session_t;
 
-int init_session(session_t* session, uint32_t session_id, uint8_t capacity, uint8_t is_visible);
+int init_session(session_t* session, uint32_t session_id,  uint8_t capacity, uint8_t is_visible,  uint8_t nbrLign,  uint8_t nbrCardsLign, uint8_t nbrCardsPlayer, uint8_t nbrCards, uint8_t nbrHead);
 void send_unregister(session_t* session);
 void cleanup_session(session_t* session);
 
 void* session_main(void* arg);
 int handle_system_message(session_t* session, session_message_t* msg);
+int handle_game_message(session_t* session, const session_message_t* msg);
 
 int session_send_to_player(const session_t* session, uint32_t user_id, uint8_t packet_type, const void* payload, uint16_t payload_length);
-int send_system_message_to_server(const session_t* session, const uint32_t user_id, const system_message_type_t type);
+int send_system_message_to_server(const session_t* session, uint32_t user_id, system_message_type_t type);
 
 int get_index_by_id(const session_t* session, uint32_t user_id);
 int get_first_free_player_place(const session_t* session);
@@ -52,4 +54,8 @@ int remove_player(session_t* session, uint32_t client_id);
 // Packets
 int session_send_simple_packet(const session_t* session, uint32_t user_id, uint8_t packet_type);
 int session_send_error_packet(const session_t* session, uint32_t user_id, uint8_t error_code, const char* error_message);
+int session_send_state(const session_t* session, uint32_t user_id);
+int session_send_info(const session_t* session, uint32_t user_id);
+
+int session_handle_info_return_packet(session_t* session,const uint8_t *payload, uint16_t payload_length);
 #endif //SESSION_H

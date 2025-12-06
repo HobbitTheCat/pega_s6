@@ -10,7 +10,10 @@
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
 
-int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity, const uint8_t is_visible) {
+int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity, const uint8_t is_visible, const uint8_t nbrLign, const uint8_t nbrCardsLign, const uint8_t nbrCardsPlayer, const uint8_t nbrCards, const uint8_t nbrHead){
+    session->game = malloc(sizeof(game_t));
+    if (!session->game) return -1;
+    init_game(session->game,nbrLign,nbrCardsLign,nbrCardsPlayer,nbrCards,nbrHead,capacity);
     session->capacity = capacity;
     session->number_players = 0;
     session->is_visible = is_visible;
@@ -18,12 +21,14 @@ int init_session(session_t* session, const uint32_t session_id, const uint8_t ca
     session->unregister_send = 1;
     session->timer_fd = -1;
 
+
     session->players = calloc(capacity, sizeof(player_t));
-    if (!session->players) {perror("session: create session bus"); return -1;}
+    if (!session->players) {perror("session: create session bus"); free(session->game); return -1;}
 
     session->bus = create_session_bus(256, session->id);
     if (!session->bus) {
         perror("session: create session bus");
+        free(session->game);
         free(session->players);
         return -1;
     }
@@ -34,6 +39,8 @@ int init_session(session_t* session, const uint32_t session_id, const uint8_t ca
 
 void cleanup_session(session_t* session) {
     session->running = 0;
+    cleanup_game(session->game);
+    free(session->game);
     destroy_session_bus(session->bus);
     session->bus = NULL;
     free(session->players);
@@ -90,6 +97,7 @@ void* session_main(void* arg) {
                 if (received == BUFFER_SUCCESS && msg) {
                     print_session_message(msg);
                     if (handle_system_message(session, msg) > 0) continue;
+                    handle_game_message(session, msg);
 
                     free(msg);
                 }
@@ -138,9 +146,7 @@ int add_player(session_t* session, const uint32_t client_id) {
     const int idx = get_first_free_player_place(session);
     if (idx == -1) return -2;
     player_t* p = &session->players[idx];
-    memset(p, 0, sizeof(*p));
-    p->player_id = client_id;
-    p->last_active_time = 0;
+    create_player(p, client_id, session->game->nbrCardsPlayer);
     session->number_players++;
     return 0;
 }
@@ -151,7 +157,7 @@ int remove_player(session_t* session, const uint32_t client_id) {
     if (client_id == session->id_creator && session->number_players > 1)
         for (int i = 0; (size_t)i < session->capacity; i++)
             if (session->players[i].player_id != 0) {session->id_creator = session->players[i].player_id; break;}
-    session->players[player_index].player_id = 0;
+    cleanup_player(&session->players[player_index]);
     session->number_players--;
     return 0;
 }

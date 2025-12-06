@@ -53,7 +53,7 @@ int create_new_session(server_t* server, const uint8_t number_of_players, const 
     if (!session_info) return -1;
     session_t* new_session = (session_t*)malloc(sizeof(session_t));
     if (!new_session) {free(session_info); return -1;}
-    if (init_session(new_session, session_id, number_of_players, is_visible) == -1) {free(new_session); free(session_info); return -1;}
+    if (init_session(new_session, session_id, number_of_players, is_visible, 4, 5, 9, 104, 6) == -1) {free(new_session); free(session_info); return -1;}
     response_t* response = create_response(P_BUS, new_session->bus->write.event_fd, &new_session->bus->write.queue);
     if (!response) {free(session_info); cleanup_session(new_session); free(new_session); return -1;}
     if (add_epoll_event(server->epoll_fd, new_session->bus->write.event_fd, EPOLLIN, response) == -1) {free(response); free(session_info); cleanup_session(new_session); free(new_session); return -1;}
@@ -147,29 +147,6 @@ void handle_bus_message(server_t* server, const response_t* response) {
                         print_session_message(message);
                     }
                 }
-                // switch (message->data.system.type) {
-                //     case SESSION_UNREGISTER:
-                //         unregister_session(server,  message->data.system.session_id);
-                //         break;
-                //     case USER_CONNECTED:
-                //         server_player_t* conn = fd_map_get(server->registered_players, (int)message->data.system.user_id);
-                //         server_session_t* session_info_p = fd_map_get(server->registered_sessions, (int)message->data.system.session_id);
-                //         session_info_p->number_players += 1;
-                //         conn->session_id = message->data.system.session_id;
-                //         conn->state = PLAYER_STATE_IN_GAME;
-                //         break;
-                //     case USER_DISCONNECTED:
-                //         server_player_t* disconn = fd_map_get(server->registered_players, (int)message->data.system.user_id);
-                //         server_session_t* session_info_r = fd_map_get(server->registered_sessions, (int)message->data.system.session_id);
-                //         session_info_r->number_players -= 1;
-                //         disconn->session_id = 0;
-                //         disconn->state = PLAYER_STATE_LOBBY;
-                //         break;
-                //     default:
-                //         printf("Unknown message type %d\n", message->data.system.type);
-                //         print_session_message(message);
-                //         break;
-                // }
             }
             free(message);
         }

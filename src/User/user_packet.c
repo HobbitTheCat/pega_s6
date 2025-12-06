@@ -113,10 +113,90 @@ int client_handle_session_list(const uint8_t* payload, const uint16_t payload_le
     }
     const uint32_t* ids = (const uint32_t*) (session_list + 1);
     printf("Session ids: ");
-    for (uint16_t i = 0; i < count; i++) {
+    if (count == 0) {printf("\n"); return 0;}
+    printf("%d", ids[0]);
+    for (uint16_t i = 1; i < count; i++) {
         const uint32_t session_id = ids[i];
-        printf("%d, ", session_id);
+        printf(", %d", session_id);
     }
     printf(" \n");
+    return 0;
+}
+
+int client_handle_session_state(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
+    if (payload_length < sizeof(pkt_session_state_payload_t)) {
+        fprintf(stderr, "Client: bad SESSION_STATE length\n");
+        return -1;
+    }
+
+    const pkt_session_state_payload_t* pkt = (pkt_session_state_payload_t*) payload;
+    user_join_session(user, pkt->nbrLign, pkt->nbrCardsLign, pkt->nbrCardsPlayer);
+    return 0;
+}
+
+int client_handle_session_info(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
+    if (!user->game_initialized) {
+        fprintf(stderr, "Client: session state not received yet\n");
+        return -1;
+    }
+
+    const uint16_t board_length = user->nb_line * user->nb_card_line;
+    if (payload_length < sizeof(pkt_session_info_payload_t)) {
+        fprintf(stderr, "Client: bad SESSION_INFO length\n");
+        return -1;
+    }
+
+    const pkt_session_info_payload_t* hdr = (pkt_session_info_payload_t*)payload;
+    const uint16_t hand_count = hdr->hand_count;
+
+    const size_t expected =
+        sizeof(pkt_session_info_payload_t) +
+        (size_t)board_length * sizeof(pkt_card_t) +
+        (size_t)hand_count * sizeof(pkt_card_t);
+
+    if (payload_length < expected) {
+        fprintf(stderr, "Client: truncated SESSION_INFO\n");
+        return -1;
+    }
+
+    const pkt_card_t* cards = (const pkt_card_t*)(hdr + 1);
+    const pkt_card_t* board_cards = cards;
+    const pkt_card_t* hand_cards  = cards + board_length;
+
+    // ===== Вывод состояния =====
+
+    printf("\n===== BOARD =====\n");
+
+    for (uint16_t r = 0; r < user->nb_line; ++r) {
+        for (uint16_t c = 0; c < user->nb_card_line; ++c) {
+            const pkt_card_t* card =
+                &board_cards[r * user->nb_card_line + c];
+
+            if (card->num == 0) {
+                printf("[   ] ");
+            } else {
+                printf("[%3d] ", (int)card->num);
+            }
+        }
+        printf("\n");
+    }
+
+    printf("\n===== YOUR HAND =====\n");
+
+    int any_hand = 0;
+    for (uint16_t i = 0; i < hand_count; ++i) {
+        const pkt_card_t* card = &hand_cards[i];
+        if (card->num == 0) continue;   // по протоколу не должны приходить, но на всякий случай
+        printf("[%3d] ", (int)card->num);
+        any_hand = 1;
+    }
+    if (!any_hand) {
+        printf("(no cards)\n");
+    } else {
+        printf("\n");
+    }
+
+    printf("\n");
+
     return 0;
 }

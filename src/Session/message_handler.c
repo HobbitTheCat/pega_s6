@@ -30,7 +30,7 @@ int handle_system_message(session_t* session, session_message_t* msg) {
             if (get_index_by_id(session, client_id) != -1) {
                 session_send_error_packet(session, client_id, 0x02, "User already registered"); break;}
             add_player(session, client_id);
-            session_send_simple_packet(session, client_id, PKT_SESSION_STATE);
+            session_send_state(session, client_id);
             send_system_message_to_server(session, client_id, USER_CONNECTED);
             break;
         case PKT_SESSION_LEAVE: {
@@ -57,4 +57,24 @@ int handle_system_message(session_t* session, session_message_t* msg) {
         default: return 0;
     }
     return 1;
+}
+
+int handle_game_message(session_t* session, const session_message_t* msg) {
+    const uint32_t client_id = msg->data.user.client_id;
+    switch (msg->data.user.packet_type) {
+        case PKT_START_SESSION:
+            printf("AH");
+            distrib_cards(session->game, session->players, (int)session->number_players);
+            printf("AHH");
+            for (int i = 0; (size_t)i < session->capacity; i++) {
+                const player_t* player = &session->players[i];
+                if (player->player_id == 0) continue;
+                session_send_info(session, player->player_id);
+            }
+            printf("AHH");
+            break;
+        default:
+            printf("Received packet: %d\n", msg->data.user.packet_type);
+    }
+    return 0;
 }

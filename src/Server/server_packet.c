@@ -118,6 +118,18 @@ int handle_reconnect_packet(server_t* server, server_conn_t* conn, const uint8_t
     return 0;
 }
 
+int handle_session_create_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, const uint16_t payload_length) {
+    if (payload_length < sizeof(pkt_session_create_payload_t)) {
+        send_error_packet(server, conn, 0x21, "Bad session creation length");
+        return -1;
+    }
+    const pkt_session_create_payload_t* pkt = (const pkt_session_create_payload_t*)payload;
+    if (pkt->nb_players < 2) {send_error_packet(server, conn, 0x21, "Not enough players");return -1;}
+
+    const int session_id = create_new_session(server, pkt->nb_players, (pkt->is_visible > 0)?1:0);
+    return session_id;
+}
+
 uint32_t handle_session_join_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, const uint16_t payload_length) {
     if (payload_length < sizeof(pkt_session_join_payload_t)) {
         send_error_packet(server, conn, 0x26, "Bad session join payload");

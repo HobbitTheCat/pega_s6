@@ -80,5 +80,6 @@ int send_sync_state(server_t* server, server_conn_t* conn);
 int send_session_list(server_t* server, server_conn_t* conn);
 
 int handle_reconnect_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, uint16_t payload_length);
+int handle_session_create_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, uint16_t payload_length);
 uint32_t handle_session_join_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, uint16_t payload_length);
 #endif //SERVER_H

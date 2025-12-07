@@ -33,6 +33,9 @@ int handle_system_message(session_t* session, session_message_t* msg) {
             session_send_state(session, client_id);
             send_system_message_to_server(session, client_id, USER_CONNECTED);
             break;
+        case PKT_SESSION_SET_GAME_RULES:
+            session_handle_set_rules(session, msg);
+            break;
         case PKT_SESSION_LEAVE: {
             const int rc = remove_player(session, client_id);
             if (rc == 0) {
@@ -63,15 +66,12 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
     const uint32_t client_id = msg->data.user.client_id;
     switch (msg->data.user.packet_type) {
         case PKT_START_SESSION:
-            printf("AH");
-            distrib_cards(session->game, session->players, (int)session->number_players);
-            printf("AHH");
+            distrib_cards(session->game, session->players, (int)session->capacity);
             for (int i = 0; (size_t)i < session->capacity; i++) {
                 const player_t* player = &session->players[i];
                 if (player->player_id == 0) continue;
                 session_send_info(session, player->player_id);
             }
-            printf("AHH");
             break;
         default:
             printf("Received packet: %d\n", msg->data.user.packet_type);

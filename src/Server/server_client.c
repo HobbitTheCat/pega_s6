@@ -17,7 +17,7 @@ static const char TOKEN_ALPHABET[] =
 
 #define TOKEN_ALPHABET_LEN (sizeof(TOKEN_ALPHABET) - 1)
 
-int generate_reconnection_token(char* buf, size_t len) {
+int generate_reconnection_token(char* buf, const size_t len) {
     if (len < 2) return -1;
 
     for (size_t i = 0; i < len - 1; i++) {

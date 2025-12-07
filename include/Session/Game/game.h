@@ -13,6 +13,8 @@ typedef struct {
     uint8_t nbrCards;
     uint8_t nbHead;
     uint8_t nextCards;
+
+    int game_started;
     card_t* board;
 } game_t;
 

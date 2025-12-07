@@ -8,6 +8,8 @@
 #include <time.h>
 #include <sys/random.h>
 
+// TODO add function to check that game is valid
+
 int init_game(game_t* game, const uint8_t nbrLign, const uint8_t nbrCardsLign, const uint8_t nbrCardsPlayer, const uint8_t nbrCards, const uint8_t nbrHead,const uint8_t nb_player) {
     if (nbrCards <= (uint8_t)(nbrCardsPlayer * nb_player)) return -1;
 
@@ -17,6 +19,7 @@ int init_game(game_t* game, const uint8_t nbrLign, const uint8_t nbrCardsLign, c
     game->nbrCards = nbrCards;
     game->nbHead = nbrHead;
     game->nextCards = 0;
+    game->game_started = 0;
     game->board = malloc((size_t)game->nbrCardsLign * game->nbrLign * sizeof(card_t));
     if (!game->board) return -1;
 
@@ -29,6 +32,7 @@ void cleanup_game(game_t* game) {
 }
 
 int distrib_cards(game_t* game, player_t* player, const int nb_player) {
+    game->game_started = 1;
     card_t* deck = malloc(game->nbrCards * sizeof(card_t));
     if (!deck) return -1;
 

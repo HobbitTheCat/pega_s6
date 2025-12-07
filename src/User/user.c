@@ -139,7 +139,7 @@ void user_run(user_t* user, const char* host, uint16_t port) {
         }
 
         // одно подключение
-        int rc = user_loop_once(user);
+        const int rc = user_loop_once(user);
         printf("Вышел\n");
         user_close_connection(user);
 

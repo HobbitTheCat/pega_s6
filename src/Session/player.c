@@ -18,7 +18,7 @@ int cleanup_player(player_t* player) {
     return 0;
 }
 
-uint16_t calc_hand_count(const player_t* player, uint8_t max_card) {
+uint16_t calc_hand_count(const player_t* player, const uint8_t max_card) {
     uint16_t count = 0;
     for (uint8_t i = 0; i < max_card; i++) {
         if (player->player_cards[i].num != 0) {

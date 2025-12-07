@@ -107,3 +107,41 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
     free(payload);
     return result;
 }
+
+int session_handle_set_rules(session_t* session, session_message_t* msg) {
+    if (msg->data.user.client_id != session->id_creator) {
+        session_send_error_packet(session, msg->data.user.client_id, 0x01, "Unauthorized access");
+        return -1;
+    }
+    if (msg->data.user.payload_length < sizeof(pkt_session_set_game_rules_payload_t)) {
+        session_send_error_packet(session, msg->data.user.client_id, 0x34, "Bad session set rules payload");
+        return -1;
+    }
+    if (session->game->game_started == 1) {
+        session_send_error_packet(session, msg->data.user.client_id, 0x34, "Session already started");
+        return -1;
+    }
+    const pkt_session_set_game_rules_payload_t* pkt = (const pkt_session_set_game_rules_payload_t*)msg->data.user.buf;
+    uint8_t nb_lines = pkt->nb_lines;
+    uint8_t nb_cards_line = pkt->nb_cards_line;
+    uint8_t nb_cards_player = pkt->nb_cards_player;
+    uint8_t nb_cards = pkt->nb_cards;
+    uint8_t max_heads = pkt->max_heads;
+
+    if (nb_cards < nb_cards_player * session->capacity) {
+        session_send_error_packet(session, msg->data.user.client_id, 0x34, "Not enough cards");
+        return -1;
+    }
+
+    cleanup_game(session->game);
+    init_game(session->game, nb_lines, nb_cards_line, nb_cards_player,
+        nb_cards, max_heads, session->capacity);
+
+    for (int i = 0; (size_t)i < session->capacity; i++) {
+        const player_t* player = &session->players[i];
+        if (player->player_id == 0) continue;
+        session_send_state(session, player->player_id);
+    }
+
+    return 0;
+}

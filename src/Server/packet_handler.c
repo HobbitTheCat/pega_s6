@@ -27,7 +27,8 @@ void handle_packet_main(server_t* server, server_conn_t* conn, const uint8_t pac
             send_simple_packet(server, conn, PKT_UNREGISTER_RETURN); break;
         case PKT_SESSION_CREATE:
             if (player->session_id != 0) { send_error_packet(server, conn, 0x04, "Session already exist"); break;}
-            const uint32_t session_id = create_new_session(server, 4, 1);
+            const int session_id = handle_session_create_packet(server, conn, payload, payload_length);
+            if (session_id < 0) send_error_packet(server, conn, 0x05, "Session creation failed");
             send_message_to_session(server, session_id, player->user_id, PKT_SESSION_JOIN, payload, payload_length);
             break;
         case PKT_SESSION_JOIN:

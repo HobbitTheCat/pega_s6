@@ -67,6 +67,20 @@ int user_send_reconnect(user_t* user) {
     return result;
 }
 
+int user_send_create_session(user_t* user, const uint8_t number_players, const uint8_t is_visible) {
+    const size_t payload_length = sizeof(pkt_session_create_payload_t);
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+
+    pkt_session_create_payload_t* packet = (pkt_session_create_payload_t*)payload;
+    packet->is_visible = is_visible;
+    packet->nb_players = number_players;
+
+    const int result = user_send_packet(user, PKT_SESSION_CREATE, payload, payload_length);
+    free(payload);
+    return result;
+}
+
 int user_send_join_session(user_t* user, const uint32_t session_id) {
     const size_t payload_length = sizeof(pkt_session_join_payload_t);
     uint8_t* payload = malloc(payload_length);
@@ -76,6 +90,24 @@ int user_send_join_session(user_t* user, const uint32_t session_id) {
     packet->session_id = session_id;
 
     const int result = user_send_packet(user, PKT_SESSION_JOIN, payload, payload_length);
+    free(payload);
+    return result;
+}
+
+int user_send_set_session_rules(user_t* user, const uint8_t is_visible, const uint8_t nb_lines,
+        const uint8_t nb_cards_line, const uint8_t nb_cards, const uint8_t nb_cards_player, const uint8_t max_heads) {
+    const size_t payload_length = sizeof(pkt_session_set_game_rules_payload_t);
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+
+    pkt_session_set_game_rules_payload_t* packet = (pkt_session_set_game_rules_payload_t*)payload;
+    packet->is_visible = is_visible;
+    packet->nb_lines = nb_lines;
+    packet->nb_cards_line = nb_cards_line;
+    packet->nb_cards = nb_cards;
+    packet->nb_cards_player = nb_cards_player;
+    packet->max_heads = max_heads;
+    const int result = user_send_packet(user, PKT_SESSION_SET_GAME_RULES, payload, payload_length);
     free(payload);
     return result;
 }
@@ -163,8 +195,6 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
     const pkt_card_t* board_cards = cards;
     const pkt_card_t* hand_cards  = cards + board_length;
 
-    // ===== Вывод состояния =====
-
     printf("\n===== BOARD =====\n");
 
     for (uint16_t r = 0; r < user->nb_line; ++r) {
@@ -186,7 +216,7 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
     int any_hand = 0;
     for (uint16_t i = 0; i < hand_count; ++i) {
         const pkt_card_t* card = &hand_cards[i];
-        if (card->num == 0) continue;   // по протоколу не должны приходить, но на всякий случай
+        if (card->num == 0) continue;
         printf("[%3d] ", (int)card->num);
         any_hand = 1;
     }

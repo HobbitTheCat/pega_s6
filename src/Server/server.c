@@ -166,7 +166,7 @@ void cleanup_connection(server_t* server, server_conn_t* conn) {
 void* server_main(void* arg) {
     server_t* server = arg;
     struct epoll_event events[MAX_EVENTS];
-    // TODO если во время внутреннего цикла первым сообщением освобождается клиент а вторым приходит ему лично то происходит NULL PINTER EXCEPTION решение - видимо стэк
+    // TODO если во время внутреннего цикла первым сообщением освобождается клиент а вторым приходит ему лично то происходит NULL POINTER EXCEPTION решение - видимо стэк
     while (server->running) {
         int const n = epoll_wait(server->epoll_fd, events, MAX_EVENTS, -1); // TODO убрать 20
         if (n == -1){ if (errno == EINTR) continue; perror("server: epoll_wait"); cleanup_server(server); break;}

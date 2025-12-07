@@ -25,17 +25,18 @@ typedef enum {
     PKT_SESSION_LEAVE = 11,
     PKT_SESSION_CREATE = 12,
     PKT_SESSION_CLOSE = 13,
-    PKT_SESSION_STATE = 14,        // <-
+    PKT_SESSION_SET_GAME_RULES = 14,
+    PKT_SESSION_STATE = 15,        // <-
 
-    PKT_READY = 15,             // ->
-    PKT_START_SESSION = 16,        // ->
-    PKT_START_SESSION_RETURN = 17, // <-
-    PKT_SESSION_INFO = 18,
-    PKT_INFO_RETURN = 19,
-    PKT_REQUEST_EXTRA = 20,
-    PKT_RESPONSE_EXTRA = 21,
-    PKT_PHASE_RESULT = 22,
-    PKT_SESSION_END = 23,
+    PKT_READY = 16,             // ->
+    PKT_START_SESSION = 17,        // ->
+    PKT_START_SESSION_RETURN = 18, // <-
+    PKT_SESSION_INFO = 19,
+    PKT_INFO_RETURN = 20,
+    PKT_REQUEST_EXTRA = 21,
+    PKT_RESPONSE_EXTRA = 22,
+    PKT_PHASE_RESULT = 23,
+    PKT_SESSION_END = 24,
     // ...
     PKT_ERROR = 255
 } packet_type_t;
@@ -88,6 +89,26 @@ typedef struct {
 } pkt_session_list_payload_t;
 #pragma pack(pop)
 
+// PKT_SESSION_CREATE
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t nb_players;
+    uint8_t is_visible;
+} pkt_session_create_payload_t;
+#pragma pack(pop)
+
+// PKT_SESSION_SET_GAME_RULES
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t is_visible;
+    uint8_t nb_lines;
+    uint8_t nb_cards_line;
+    uint8_t nb_cards;
+    uint8_t nb_cards_player;
+    uint8_t max_heads;
+} pkt_session_set_game_rules_payload_t;
+#pragma pack(pop)
+
 // PKT_SESSION_JOIN
 #pragma pack(push, 1)
 typedef struct {
@@ -103,7 +124,6 @@ typedef struct {
     uint8_t nbrCardsPlayer;
 } pkt_session_state_payload_t;
 #pragma pack(pop)
-
 
 // PKT_SESSION_INFO
 #pragma pack(push, 1)

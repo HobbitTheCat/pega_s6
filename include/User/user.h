@@ -61,8 +61,11 @@ int user_quit_session(user_t* user);
 // Packets
 int user_send_simple(user_t* user, uint8_t type);
 int user_send_reconnect(user_t* user);
+int user_send_create_session(user_t* user, uint8_t number_players, uint8_t is_visible);
 int user_send_join_session(user_t* user, uint32_t session_id);
 int user_send_cart_choice(user_t* user,uint8_t card_index);
+int user_send_set_session_rules(user_t* user, uint8_t is_visible, uint8_t nb_lines,
+        uint8_t nb_cards_line, uint8_t nb_cards, uint8_t nb_cards_player, uint8_t max_heads);
 
 int client_handle_sync_state(user_t* user, const uint8_t* payload, uint16_t payload_length);
 int client_handle_session_list(const uint8_t* payload, uint16_t payload_length);

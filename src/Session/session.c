@@ -10,10 +10,10 @@
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
 
-int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity, const uint8_t is_visible, const uint8_t nbrLign, const uint8_t nbrCardsLign, const uint8_t nbrCardsPlayer, const uint8_t nbrCards, const uint8_t nbrHead){
+int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity, const uint8_t is_visible){
     session->game = malloc(sizeof(game_t));
     if (!session->game) return -1;
-    init_game(session->game,nbrLign,nbrCardsLign,nbrCardsPlayer,nbrCards,nbrHead,capacity);
+    if (init_game(session->game, 4, 5, 10, 104, 5, session->capacity) == -1) {free(session->game); return -1;}
     session->capacity = capacity;
     session->number_players = 0;
     session->is_visible = is_visible;

@@ -34,7 +34,7 @@ typedef struct {
     size_t number_players;
 } server_session_t;
 
-int init_session(session_t* session, uint32_t session_id,  uint8_t capacity, uint8_t is_visible,  uint8_t nbrLign,  uint8_t nbrCardsLign, uint8_t nbrCardsPlayer, uint8_t nbrCards, uint8_t nbrHead);
+int init_session(session_t* session, uint32_t session_id, uint8_t capacity, uint8_t is_visible);
 void send_unregister(session_t* session);
 void cleanup_session(session_t* session);
 
@@ -58,4 +58,5 @@ int session_send_state(const session_t* session, uint32_t user_id);
 int session_send_info(const session_t* session, uint32_t user_id);
 
 int session_handle_info_return_packet(session_t* session,const uint8_t *payload, uint16_t payload_length);
+int session_handle_set_rules(session_t* session, session_message_t* msg);
 #endif //SESSION_H

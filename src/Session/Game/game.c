@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <time.h>
 #include <sys/random.h>
 
@@ -190,7 +191,6 @@ int placement_card(game_t* game, player_t* player, const uint8_t capacity){
                 }
             }
             else {
-                printf("Req extra\n");
                 const uint32_t player_id = game->deck[game->card_ready_to_place[k]].client_id;
                 int index = 0;
                 for (int j = 0; j < capacity; j++) {if (player_id == player[j].player_id) break;index++;}
@@ -202,6 +202,13 @@ int placement_card(game_t* game, player_t* player, const uint8_t capacity){
         bestrow = 0;
     }
     game->card_ready_to_place_count = 0;
+    for (int i = 0; i<capacity;i++) {
+        if (player[i].player_id != 0) {
+            if (checking_cards(game,&player[i])) {
+                return -3;
+            }
+        }
+    }
     return -2;
 }
 
@@ -210,9 +217,11 @@ int takeLigne(game_t* game, player_t* player, const uint8_t numeroLigne, const u
     const uint32_t player_id = game->deck[game->card_ready_to_place[indexPlayer]].client_id;
     int index = 0;
     for (int i =0; i < capacity; i++) {if (player_id == player[i].player_id) break;index++;}
-
+    printf("player_id %d \n", index);
     for (int i=0;i<game->nbrCardsLign;i++) {
+        if (game->board[numeroLigne*game->nbrCardsLign+i] == -1) continue;
         player[index].nb_head += game->deck[game->board[numeroLigne*game->nbrCardsLign+i]].numberHead;
+        
         if (i==0)
             game->board[numeroLigne*game->nbrCardsLign+i] = game->card_ready_to_place[indexPlayer];
         else
@@ -221,3 +230,10 @@ int takeLigne(game_t* game, player_t* player, const uint8_t numeroLigne, const u
     game->card_ready_to_place[indexPlayer] = -1;
     return 0;
 }
+int checking_cards(game_t* game,player_t* player) {
+     for (int i=0;i<game->nbrCardsPlayer;i++) {
+         if (player->player_cards_id[i] != -1) return 0;
+     }
+      return 1;
+}
+

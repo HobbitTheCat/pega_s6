@@ -140,7 +140,10 @@ int user_send_response_extra(user_t* user, const int16_t row_index) {
     return result;
 }
 
-int client_handle_request_extra(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
+int client_handle_request_extra(user_t* user,
+                                const uint8_t* payload,
+                                const uint16_t payload_length)
+{
     if (!user->game_initialized) {
         fprintf(stderr, "Client: REQUEST_EXTRA received before SESSION_STATE\n");
         return -1;
@@ -167,7 +170,7 @@ int client_handle_request_extra(user_t* user, const uint8_t* payload, const uint
 
     const pkt_card_t* cards = (const pkt_card_t*)(hdr + 1);
 
-    // ---- Показать игроку карты ----
+    // ---- Только выводим информацию ----
     printf("\n===== EXTRA REQUEST =====\n");
     printf("Cards to consider:\n");
 
@@ -180,43 +183,13 @@ int client_handle_request_extra(user_t* user, const uint8_t* payload, const uint
                (unsigned)c->client_id);
     }
 
-    printf("\nThere are %u rows (0..%u)\n",
-           (unsigned)user->nb_line, (unsigned)(user->nb_line - 1));
+    printf("\nRows available: 0..%u",
+           (unsigned)(user->nb_line - 1));
 
-    // ---- Спросить у пользователя индекс строки ----
-    int chosen_row = -1;
-    for (;;) {
-        printf("Enter row index (-1 if impossible): ");
-        fflush(stdout);
-
-        if (scanf("%d", &chosen_row) != 1) {
-            // очистим stdin и попробуем ещё раз
-            int ch;
-            while ((ch = getchar()) != '\n' && ch != EOF) {}
-            fprintf(stderr, "Invalid input, try again.\n");
-            continue;
-        }
-
-        if (chosen_row == -1) {
-            break;
-        }
-
-        if (chosen_row < 0 || chosen_row >= (int)user->nb_line) {
-            fprintf(stderr, "Row index out of range, try again.\n");
-            continue;
-        }
-
-        break;
-    }
-
-    // ---- Отправить ответ ----
-    if (user_send_response_extra(user, (int16_t)chosen_row) < 0) {
-        fprintf(stderr, "Client: failed to send RESPONSE_EXTRA\n");
-        return -1;
-    }
-
+    printf("Please send RESPONSE_EXTRA with chosen row index.\n");
     return 0;
 }
+
 
 
 int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_t payload_length) {

@@ -34,6 +34,7 @@ int placement_card(game_t* game, player_t* player,uint8_t capacity);
 void swap(int* a, int* b);
 void bubbleSort(int* arr, int n);
 int takeLigne(game_t* game, player_t* player, uint8_t numeroLigne,uint8_t indexPlayer,uint8_t capacity);
+int checking_cards(game_t* game,player_t* player);
 // int takeLigne(game_t* game, player_t* player, int row_idx, int card_val);
 
 #endif //GAME_H

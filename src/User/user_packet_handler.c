@@ -8,6 +8,7 @@
 #include <unistd.h>
 
 int user_handle_packet(user_t* user, const uint8_t type, const uint8_t* payload, const uint16_t payload_length) {
+    printf("Pakcet_type: %d\n", type);
     switch (type) {
         case PKT_WELCOME:
             if (user->client_id == 0) {
@@ -23,6 +24,8 @@ int user_handle_packet(user_t* user, const uint8_t type, const uint8_t* payload,
             return client_handle_session_state(user, payload, payload_length);
         case PKT_SESSION_INFO:
             return client_handle_session_info(user, payload, payload_length);
+        case PKT_REQUEST_EXTRA:
+            return client_handle_request_extra(user, payload, payload_length);
         case PKT_SESSION_END:
             return user_quit_session(user);
         default:

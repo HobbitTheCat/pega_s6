@@ -74,9 +74,8 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
             break;
         case PKT_SESSION_INFO_RETURN:
             const int result = game_handle_info_return(session, msg);
-
             if (result > 0){
-                game_send_request_extra(session, session->players[result].player_id);
+                game_send_request_extra(session, result);
             } else if (result == -2) {
                 for (int i = 0; (size_t)i < session->capacity; i++) {
                     const player_t* player = &session->players[i];
@@ -89,7 +88,11 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
             break;
         case PKT_RESPONSE_EXTRA:
             game_handle_response_extra(session, msg);
-
+            for (int i = 0; (size_t)i < session->capacity; i++) {
+                const player_t* player = &session->players[i];
+                if (player->player_id == 0) continue;
+                session_send_info(session, player->player_id);
+            }
             break;
         default:
             printf("Received packet: %d\n", msg->data.user.packet_type);

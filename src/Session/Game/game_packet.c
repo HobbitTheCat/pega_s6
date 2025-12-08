@@ -55,7 +55,14 @@ int game_handle_response_extra(session_t* session, const session_message_t* msg)
     }
     const pkt_response_extra_payload_t* pkt = (const pkt_response_extra_payload_t*)msg->data.user.buf;
     const int16_t row_index = pkt->row_index;
-    takeLigne(session->game,session->players, row_index,get_index_by_id(session,msg->data.user.client_id),session->capacity);
+
+    int index_card_to_place = 0;
+    for (int i = 0; i < session->game->card_ready_to_place_count; i++) {
+        if (session->game->deck[session->game->card_ready_to_place[i]].client_id == msg->data.user.client_id) break;
+        index_card_to_place++;
+    }
+
+    takeLigne(session->game,session->players, row_index, index_card_to_place,session->capacity);
     return placement_card(session->game,session->players,session->capacity);
 }
 
@@ -96,7 +103,7 @@ int game_send_request_extra(session_t* session, const uint32_t user_id) {
         out_card[index].client_id = card->client_id;
         ++index;
     }
-
+    printf("User id: %d\n", user_id);
     const int result = session_send_to_player(session, user_id,PKT_REQUEST_EXTRA, payload, payload_length);
     free(payload);
     return result;

@@ -63,7 +63,6 @@ int handle_system_message(session_t* session, session_message_t* msg) {
 }
 
 int handle_game_message(session_t* session, const session_message_t* msg) {
-    const uint32_t client_id = msg->data.user.client_id;
     switch (msg->data.user.packet_type) {
         case PKT_START_SESSION:
             distrib_cards(session->game, session->players, (int)session->capacity);
@@ -72,6 +71,25 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
                 if (player->player_id == 0) continue;
                 session_send_info(session, player->player_id);
             }
+            break;
+        case PKT_SESSION_INFO_RETURN:
+            const int result = game_handle_info_return(session, msg);
+
+            if (result > 0){
+                game_send_request_extra(session, session->players[result].player_id);
+            } else if (result == -2) {
+                for (int i = 0; (size_t)i < session->capacity; i++) {
+                    const player_t* player = &session->players[i];
+                    printf("Player id: %d\n", player->player_id);
+                    if (player->player_id == 0) continue;
+                    printf("Send info\n");
+                    session_send_info(session, player->player_id);
+                }
+            }
+            break;
+        case PKT_RESPONSE_EXTRA:
+            game_handle_response_extra(session, msg);
+
             break;
         default:
             printf("Received packet: %d\n", msg->data.user.packet_type);

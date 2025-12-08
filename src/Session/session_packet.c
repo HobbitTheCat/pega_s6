@@ -69,44 +69,93 @@ int session_send_state(const session_t* session, const uint32_t user_id) {
 
 int session_send_info(const session_t* session, const uint32_t user_id) {
     const game_t* game = session->game;
-    const player_t* player = &session->players[get_index_by_id(session, user_id)];
+    const int player_idx = get_index_by_id(session, user_id);
+    if (player_idx < 0) return -1;
+    const player_t* player = &session->players[player_idx];
+
     const uint16_t board_len = (uint16_t)(game->nbrLign * game->nbrCardsLign);
-    const uint8_t max_hand = game->nbrCardsPlayer;
+    const uint8_t  max_hand  = game->nbrCardsPlayer;
     const uint16_t hand_count = calc_hand_count(player, max_hand);
 
+    uint16_t active_player_count = 0;
+    for (int i = 0; (size_t)i < session->capacity; i++) {
+        if (session->players[i].player_id != 0) {
+            active_player_count++;
+        }
+    }
+
     const size_t header_part = sizeof(pkt_session_info_payload_t);
-    const size_t board_part = (size_t)board_len * sizeof(pkt_card_t);
-    const size_t hand_part = (size_t)hand_count * sizeof(pkt_card_t);
-    const size_t payload_length = header_part + board_part + hand_part;
-    if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) { printf("Session info is too big"); return -1;}
+    const size_t score_part  = (size_t)active_player_count * sizeof(pkt_player_score_t);
+    const size_t board_part  = (size_t)board_len * sizeof(pkt_card_t);
+    const size_t hand_part   = (size_t)hand_count * sizeof(pkt_card_t);
+
+    const size_t payload_length = header_part + score_part + board_part + hand_part;
+    if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) {
+        printf("Session info is too big\n");
+        return -1;
+    }
 
     uint8_t* payload = malloc(payload_length);
     if (!payload) return -1;
 
+    // ---- header ----
     pkt_session_info_payload_t* header = (pkt_session_info_payload_t*)payload;
-    header->hand_count = hand_count;
+    header->hand_count   = hand_count;
+    header->player_count = active_player_count;
 
-    pkt_card_t* out = (pkt_card_t*)(header + 1);
-    for (uint16_t i = 0; i < board_len; i++) {
-        out[i].num = game->board[i].num;
-        out[i].numberHead = game->board[i].numberHead;
-        out[i].client_id = game->board[i].client_id;
+    // ---- scores ----
+    pkt_player_score_t* scores_out = (pkt_player_score_t*)(header + 1);
+    int p_idx = 0;
+    for (int i = 0; (size_t)i < session->capacity; i++) {
+        const player_t* p = &session->players[i];
+        if (p->player_id == 0) continue;
+
+        scores_out[p_idx].player_id = p->player_id;
+        scores_out[p_idx].nb_head   = p->nb_head;
+        p_idx++;
     }
+    // опционально: assert(p_idx == active_player_count);
+
+    // ---- board ----
+    pkt_card_t* out = (pkt_card_t*)(scores_out + active_player_count);
+
+    for (uint16_t i = 0; i < board_len; i++) {
+        const int board_index = game->board[i];
+        if (board_index != -1) {
+            const card_t* card = &game->deck[board_index];
+            out[i].num        = card->num;
+            out[i].numberHead = card->numberHead;
+            out[i].client_id  = card->client_id;
+        } else {
+            out[i].num        = 0;
+            out[i].numberHead = 0;
+            out[i].client_id  = 0;
+        }
+    }
+
+    // ---- hand ----
     uint16_t idx = 0;
-    for (uint16_t i = 0; i < hand_count; i++) {
-        const card_t* card = &player->player_cards[i];
-        if (card->num == 0) continue;
+    for (uint16_t i = 0; i < game->nbrCardsPlayer; i++) {
+        const int card_index = player->player_cards_id[i];
+        if (card_index == -1) continue;
+
+        const card_t* card = &game->deck[card_index];
 
         pkt_card_t* dst = &out[board_len + idx];
-        dst->num = card->num;
+        dst->num        = card->num;
         dst->numberHead = card->numberHead;
+        dst->client_id  = card->client_id;
         idx++;
     }
+    // опционально: assert(idx == hand_count);
 
-    const int result = session_send_to_player(session, user_id, PKT_SESSION_INFO, payload, payload_length);
+    const int result = session_send_to_player(session, user_id,
+                                              PKT_SESSION_INFO,
+                                              payload, payload_length);
     free(payload);
     return result;
 }
+
 
 int session_handle_set_rules(session_t* session, session_message_t* msg) {
     if (msg->data.user.client_id != session->id_creator) {

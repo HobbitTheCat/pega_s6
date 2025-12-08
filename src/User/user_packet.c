@@ -112,6 +112,113 @@ int user_send_set_session_rules(user_t* user, const uint8_t is_visible, const ui
     return result;
 }
 
+int user_send_info_return(user_t* user, const uint8_t card_choice) {
+    const size_t payload_length = sizeof(pkt_session_info_return_payload_t);
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+
+    pkt_session_info_return_payload_t* packet = (pkt_session_info_return_payload_t*)payload;
+    packet->card_id = card_choice;
+    const int result = user_send_packet(user, PKT_SESSION_INFO_RETURN, payload, payload_length);
+    free(payload);
+    return result;
+}
+
+int user_send_response_extra(user_t* user, const int16_t row_index) {
+    const size_t payload_length = sizeof(pkt_response_extra_payload_t);
+    if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) return -1;
+
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+
+    pkt_response_extra_payload_t* pkt = (pkt_response_extra_payload_t*)payload;
+
+    pkt->row_index = row_index;
+    const int result = user_send_packet(user, PKT_RESPONSE_EXTRA, payload, payload_length);
+
+    free(payload);
+    return result;
+}
+
+int client_handle_request_extra(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
+    if (!user->game_initialized) {
+        fprintf(stderr, "Client: REQUEST_EXTRA received before SESSION_STATE\n");
+        return -1;
+    }
+
+    if (payload_length < sizeof(pkt_request_extra_payload_t)) {
+        fprintf(stderr, "Client: bad REQUEST_EXTRA length\n");
+        return -1;
+    }
+
+    const pkt_request_extra_payload_t* hdr =
+        (const pkt_request_extra_payload_t*)payload;
+
+    const uint8_t card_count = hdr->card_count;
+
+    const size_t expected =
+        sizeof(pkt_request_extra_payload_t) +
+        (size_t)card_count * sizeof(pkt_card_t);
+
+    if (payload_length < expected) {
+        fprintf(stderr, "Client: truncated REQUEST_EXTRA cards\n");
+        return -1;
+    }
+
+    const pkt_card_t* cards = (const pkt_card_t*)(hdr + 1);
+
+    // ---- Показать игроку карты ----
+    printf("\n===== EXTRA REQUEST =====\n");
+    printf("Cards to consider:\n");
+
+    for (uint8_t i = 0; i < card_count; ++i) {
+        const pkt_card_t* c = &cards[i];
+        printf("  [%u] num=%d head=%d owner=%u\n",
+               (unsigned)i,
+               (int)c->num,
+               (int)c->numberHead,
+               (unsigned)c->client_id);
+    }
+
+    printf("\nThere are %u rows (0..%u)\n",
+           (unsigned)user->nb_line, (unsigned)(user->nb_line - 1));
+
+    // ---- Спросить у пользователя индекс строки ----
+    int chosen_row = -1;
+    for (;;) {
+        printf("Enter row index (-1 if impossible): ");
+        fflush(stdout);
+
+        if (scanf("%d", &chosen_row) != 1) {
+            // очистим stdin и попробуем ещё раз
+            int ch;
+            while ((ch = getchar()) != '\n' && ch != EOF) {}
+            fprintf(stderr, "Invalid input, try again.\n");
+            continue;
+        }
+
+        if (chosen_row == -1) {
+            break;
+        }
+
+        if (chosen_row < 0 || chosen_row >= (int)user->nb_line) {
+            fprintf(stderr, "Row index out of range, try again.\n");
+            continue;
+        }
+
+        break;
+    }
+
+    // ---- Отправить ответ ----
+    if (user_send_response_extra(user, (int16_t)chosen_row) < 0) {
+        fprintf(stderr, "Client: failed to send RESPONSE_EXTRA\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+
 int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
     if (payload_length < sizeof(pkt_sync_state_payload_t)) {
         fprintf(stderr, "Client: bad SYNC_STATE length\n"); return -1;
@@ -166,13 +273,14 @@ int client_handle_session_state(user_t* user, const uint8_t* payload, const uint
     return 0;
 }
 
+
+
 int client_handle_session_info(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
     if (!user->game_initialized) {
         fprintf(stderr, "Client: session state not received yet\n");
         return -1;
     }
 
-    const uint16_t board_length = user->nb_line * user->nb_card_line;
     if (payload_length < sizeof(pkt_session_info_payload_t)) {
         fprintf(stderr, "Client: bad SESSION_INFO length\n");
         return -1;
@@ -180,9 +288,12 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
 
     const pkt_session_info_payload_t* hdr = (pkt_session_info_payload_t*)payload;
     const uint16_t hand_count = hdr->hand_count;
+    const uint16_t player_count = hdr->player_count;
+    const uint16_t board_length = user->nb_line * user->nb_card_line;
 
     const size_t expected =
         sizeof(pkt_session_info_payload_t) +
+        (size_t)player_count * sizeof(pkt_player_score_t) +
         (size_t)board_length * sizeof(pkt_card_t) +
         (size_t)hand_count * sizeof(pkt_card_t);
 
@@ -191,16 +302,22 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
         return -1;
     }
 
-    const pkt_card_t* cards = (const pkt_card_t*)(hdr + 1);
-    const pkt_card_t* board_cards = cards;
-    const pkt_card_t* hand_cards  = cards + board_length;
+    const pkt_player_score_t* scores = (const pkt_player_score_t*)(hdr + 1);
+    const pkt_card_t* board_cards = (const pkt_card_t*)(scores + player_count);
+    const pkt_card_t* hand_cards  = board_cards + board_length;
 
-    printf("\n===== BOARD =====\n");
+    printf("\n===== SCORES =====\n");
+    printf("%-10s | %s\n", "Player ID", "Score (Heads)");
+    printf("-----------|--------------\n");
+    for (uint16_t i = 0; i < player_count; ++i) {
+        printf("%-10u | %u\n", scores[i].player_id, scores[i].nb_head);
+    }
+    printf("\n");
 
+    printf("===== BOARD =====\n");
     for (uint16_t r = 0; r < user->nb_line; ++r) {
         for (uint16_t c = 0; c < user->nb_card_line; ++c) {
-            const pkt_card_t* card =
-                &board_cards[r * user->nb_card_line + c];
+            const pkt_card_t* card = &board_cards[r * user->nb_card_line + c];
 
             if (card->num == 0) {
                 printf("[   ] ");
@@ -212,7 +329,6 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
     }
 
     printf("\n===== YOUR HAND =====\n");
-
     int any_hand = 0;
     for (uint16_t i = 0; i < hand_count; ++i) {
         const pkt_card_t* card = &hand_cards[i];
@@ -227,6 +343,5 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
     }
 
     printf("\n");
-
     return 0;
 }

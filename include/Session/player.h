@@ -1,12 +1,13 @@
 #ifndef PLAYER_H
 #define PLAYER_H
 #include <stdint.h>
-#include "Session/Game/card.h"
 
 typedef struct {
     uint32_t player_id;
-    card_t* player_cards;
+    int* player_cards_id;
+
     uint64_t last_active_time;
+    uint8_t nb_head;
 } player_t;
 
 int create_player(player_t* player, uint32_t client_id, uint8_t nb_cards);

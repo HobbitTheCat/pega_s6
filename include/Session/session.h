@@ -57,6 +57,10 @@ int session_send_error_packet(const session_t* session, uint32_t user_id, uint8_
 int session_send_state(const session_t* session, uint32_t user_id);
 int session_send_info(const session_t* session, uint32_t user_id);
 
-int session_handle_info_return_packet(session_t* session,const uint8_t *payload, uint16_t payload_length);
 int session_handle_set_rules(session_t* session, session_message_t* msg);
+
+int game_handle_info_return(session_t* session, const session_message_t* msg);
+int game_handle_response_extra(session_t* session, const session_message_t* msg);
+int game_send_request_extra(session_t* session, uint32_t user_id);
+
 #endif //SESSION_H

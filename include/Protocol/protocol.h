@@ -30,9 +30,8 @@ typedef enum {
 
     PKT_READY = 16,             // ->
     PKT_START_SESSION = 17,        // ->
-    PKT_START_SESSION_RETURN = 18, // <-
     PKT_SESSION_INFO = 19,
-    PKT_INFO_RETURN = 20,
+    PKT_SESSION_INFO_RETURN = 20,
     PKT_REQUEST_EXTRA = 21,
     PKT_RESPONSE_EXTRA = 22,
     PKT_PHASE_RESULT = 23,
@@ -136,8 +135,35 @@ typedef struct {
 
 #pragma pack(push, 1)
 typedef struct {
+    uint32_t player_id;
+    uint8_t nb_head;
+} pkt_player_score_t;
+
+typedef struct {
     uint16_t hand_count;
+    uint16_t player_count;
 } pkt_session_info_payload_t;
+#pragma pack(pop)
+
+// PKT_SESSION_INFO_RETURN
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t card_id;
+} pkt_session_info_return_payload_t;
+#pragma pack(pop)
+
+// PKT_REQUEST_EXTRA
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t card_count;
+} pkt_request_extra_payload_t;
+#pragma pack(pop)
+
+// PKT_RESPONSE_EXTRA
+#pragma pack(push, 1)
+typedef struct {
+    int16_t row_index;
+} pkt_response_extra_payload_t;
 #pragma pack(pop)
 
 #endif //PROTOCOL_H

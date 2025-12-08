@@ -51,6 +51,6 @@ $(BUILD_DIR)/test_%: test/test_%.c $(OBJ)
 	@echo "$(GREEN)Built $@$(RESET)"
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)/
 
 .PHONY: all clean test

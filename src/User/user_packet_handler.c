@@ -42,7 +42,7 @@ void user_handle_stdin(user_t* user) {
 
 
 void user_execute_command(user_t* user, const char* cmd) {
-    if (strncmp(cmd, "new", 3) == 0) user_send_create_session(user, 4, 0);
+    if (strncmp(cmd, "new", 3) == 0) user_send_create_session(user, 2, 1);
     else if (strncmp(cmd, "quit_s", 6) == 0) user_send_simple(user, PKT_SESSION_LEAVE);
     else if (strncmp(cmd, "unreg", 5) == 0) user_send_simple(user, PKT_UNREGISTER);
     else if (strncmp(cmd, "dconn", 5) == 0) user_close_connection(user);
@@ -53,10 +53,13 @@ void user_execute_command(user_t* user, const char* cmd) {
     else if (strncmp(cmd, "play", 4) == 0 && cmd[4] == ' ') {
         int card_value;
         if (sscanf(cmd + 5, "%d", &card_value) == 1) {
-            // user_send_cart_choice(user, card_value);
-        } else {
-            fprintf(stderr, "Bad play command. Usage: play <number>\n");
-        }
-    }
+            user_send_info_return(user, card_value);
+        } else fprintf(stderr, "Bad play command. Usage: play <number>\n");
 
+    } else if (strncmp(cmd, "extr", 4) == 0 && cmd[4] == ' ') {
+        int row_number;
+        if (sscanf(cmd + 5, "%d", &row_number) == 1) {
+            user_send_response_extra(user, row_number);
+        } else fprintf(stderr, "Bad play command. Usage: play <number>\n");
+    }
 }

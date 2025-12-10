@@ -54,6 +54,7 @@ int remove_player(session_t* session, uint32_t client_id);
 // Packets
 int session_send_simple_packet(const session_t* session, uint32_t user_id, uint8_t packet_type);
 int session_send_error_packet(const session_t* session, uint32_t user_id, uint8_t error_code, const char* error_message);
+int session_send_status(const session_t* session);
 int session_send_state(const session_t* session, uint32_t user_id);
 int session_send_info(const session_t* session, uint32_t user_id);
 

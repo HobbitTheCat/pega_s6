@@ -11,9 +11,10 @@
 #include <sys/timerfd.h>
 
 int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity, const uint8_t is_visible){
+    printf("Try to init: id: %d, cap: %d, is_vis: %d\n", session_id, capacity, is_visible);
     session->game = malloc(sizeof(game_t));
-    if (!session->game) return -1;
-    if (init_game(session->game, 4, 5, 10, 104, 5, session->capacity) == -1) {free(session->game); return -1;}
+    if (!session->game) {printf("!game\n"); return -1;}
+    if (init_game(session->game, 4, 5, 10, 104, 5, capacity) == -1) {free(session->game); printf("!init_game\n"); return -1;}
     session->capacity = capacity;
     session->number_players = 0;
     session->is_visible = is_visible;

@@ -23,8 +23,9 @@ void handle_packet_main(server_t* server, server_conn_t* conn, const uint8_t pac
         case PKT_GET_SESSION_LIST:
             send_session_list(server, conn); break;
         case PKT_UNREGISTER:
+            send_simple_packet(server, conn, PKT_UNREGISTER_RETURN);
             unregister_client(server, player->user_id);
-            send_simple_packet(server, conn, PKT_UNREGISTER_RETURN); break;
+            break;
         case PKT_SESSION_CREATE:
             if (player->session_id != 0) { send_error_packet(server, conn, 0x04, "Session already exist"); break;}
             const int session_id = handle_session_create_packet(server, conn, payload, payload_length);
@@ -34,6 +35,7 @@ void handle_packet_main(server_t* server, server_conn_t* conn, const uint8_t pac
         case PKT_SESSION_JOIN:
             const uint32_t id = handle_session_join_packet(server, conn, payload, payload_length);
             if (id == 0) break;
+            if (!fd_map_get(server->registered_sessions, (int)id)) { send_error_packet(server, conn, 0x05, "Session not found"); break;}
             send_message_to_session(server, id, player->user_id, PKT_SESSION_JOIN, payload, payload_length);
             break;
         default:

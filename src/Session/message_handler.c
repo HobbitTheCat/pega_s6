@@ -29,9 +29,12 @@ int handle_system_message(session_t* session, session_message_t* msg) {
             if (session->number_players == 0) {session->id_creator = client_id; session->unregister_send = 0;}
             if (get_index_by_id(session, client_id) != -1) {
                 session_send_error_packet(session, client_id, 0x02, "User already registered"); break;}
+            if (session->game->game_started == 1) {
+                session_send_error_packet(session, client_id, 0x08, "Game in progress please wait"); break;}
             add_player(session, client_id);
             session_send_state(session, client_id);
             send_system_message_to_server(session, client_id, USER_CONNECTED);
+            session_send_status(session);
             break;
         case PKT_SESSION_SET_GAME_RULES:
             session_handle_set_rules(session, msg);
@@ -65,6 +68,10 @@ int handle_system_message(session_t* session, session_message_t* msg) {
 int handle_game_message(session_t* session, const session_message_t* msg) {
     switch (msg->data.user.packet_type) {
         case PKT_START_SESSION:
+            if (msg->data.user.client_id != session->id_creator) {
+                session_send_error_packet(session, msg->data.user.client_id, 0x01, "Unauthorized access");
+                break;
+            }
             distrib_cards(session->game, session->players, (int)session->capacity);
             for (int i = 0; (size_t)i < session->capacity; i++) {
                 const player_t* player = &session->players[i];
@@ -79,19 +86,24 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
             } else if (result == -2) {
                 for (int i = 0; (size_t)i < session->capacity; i++) {
                     const player_t* player = &session->players[i];
-                    printf("Player id: %d\n", player->player_id);
                     if (player->player_id == 0) continue;
-                    printf("Send info\n");
                     session_send_info(session, player->player_id);
+                }
+            } else if (result == -3) {
+                for (int i = 0; (size_t)i < session->capacity; i++) {
+                    const player_t* player = &session->players[i];
+                    if (player->player_id == 0) continue;
+                    session_send_simple_packet(session, player->player_id, PKT_PHASE_RESULT);
                 }
             }
             break;
         case PKT_RESPONSE_EXTRA:
-            game_handle_response_extra(session, msg);
-            for (int i = 0; (size_t)i < session->capacity; i++) {
-                const player_t* player = &session->players[i];
-                if (player->player_id == 0) continue;
-                session_send_info(session, player->player_id);
+            if (game_handle_response_extra(session, msg) != -1) {
+                for (int i = 0; (size_t)i < session->capacity; i++) {
+                    const player_t* player = &session->players[i];
+                    if (player->player_id == 0) continue;
+                    session_send_info(session, player->player_id);
+                }
             }
             break;
         default:

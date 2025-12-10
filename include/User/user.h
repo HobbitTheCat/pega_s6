@@ -11,6 +11,7 @@
 #define RECONNECT_TOKEN_MAX 256
 
 typedef struct {
+    uint8_t bot;
     uint32_t client_id;
     char reconnection_token[RECONNECT_TOKEN_MAX];
 

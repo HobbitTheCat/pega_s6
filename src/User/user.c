@@ -1,3 +1,4 @@
+#include "User/bot.h"
 #include "User/user.h"
 
 #include <string.h>
@@ -12,6 +13,7 @@ int user_init(user_t* user) {
     memset(user, 0, sizeof(*user));
     user->sockfd = -1;
     user->client_id = 0;
+    user->bot = 0;
     user->reconnection_token[0] = '\0';
 
     rx_init(&user->rx);
@@ -138,7 +140,6 @@ void user_run(user_t* user, const char* host, uint16_t port) {
             continue;
         }
 
-        // одно подключение
         const int rc = user_loop_once(user);
         printf("Вышел\n");
         user_close_connection(user);
@@ -155,8 +156,6 @@ void user_run(user_t* user, const char* host, uint16_t port) {
             sleep(1 << (attempt - 1));
             continue;
         }
-
-        // break;
     }
 }
 

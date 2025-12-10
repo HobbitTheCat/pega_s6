@@ -209,7 +209,6 @@ int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_
     }
     memcpy(user->reconnection_token, token_ptr, token_length);
     user->reconnection_token[token_length] = '\0';
-    printf("Token %s\n", user->reconnection_token);
     return 0;
 }
 
@@ -305,7 +304,7 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
     int any_hand = 0;
     for (uint16_t i = 0; i < hand_count; ++i) {
         const pkt_card_t* card = &hand_cards[i];
-        if (card->num == 0) continue;
+        // if (card->num == 0) continue;
         printf("[%3d] ", (int)card->num);
         any_hand = 1;
     }

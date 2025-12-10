@@ -33,6 +33,28 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 # --- Тестирование ---
+#test: $(TEST_BIN)
+#	@echo -e "\n\nRunning tests..."
+#	@set -e; \
+#	for t in $(TEST_BIN); do \
+#		echo "Testing $$t..."; \
+#		if ./$$t; then \
+#			printf "$(GREEN)✔ $$t PASSED$(RESET)\n"; \
+#		else \
+#			printf "$(RED)✖ $$t FAILED$(RESET)\n"; \
+#		fi; \
+#	done
+#
+#$(BUILD_DIR)/test_%: test/test_%.c $(OBJ)
+#	@mkdir -p $(dir $@)
+#	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@
+#	@echo "$(GREEN)Built $@$(RESET)"
+SANITIZERS = -fsanitize=address,undefined -fno-omit-frame-pointer
+
+CFLAGS += -g -O0 -Wall \
+          $(SANITIZERS)
+LDFLAGS += $(SANITIZERS)
+
 test: $(TEST_BIN)
 	@echo -e "\n\nRunning tests..."
 	@set -e; \
@@ -47,8 +69,9 @@ test: $(TEST_BIN)
 
 $(BUILD_DIR)/test_%: test/test_%.c $(OBJ)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 	@echo "$(GREEN)Built $@$(RESET)"
+
 
 clean:
 	rm -rf $(BUILD_DIR)/

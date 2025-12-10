@@ -50,14 +50,14 @@ uint32_t get_new_session_id(server_t* server) {
 int create_new_session(server_t* server, const uint8_t number_of_players, const uint8_t is_visible) {
     const uint32_t session_id = get_new_session_id(server);
     server_session_t* session_info = malloc(sizeof(server_session_t));
-    if (!session_info) return -1;
+    if (!session_info) {printf("!session_info\n"); return -1;}
     session_t* new_session = (session_t*)malloc(sizeof(session_t));
-    if (!new_session) {free(session_info); return -1;}
-    if (init_session(new_session, session_id, number_of_players, is_visible) == -1) {free(new_session); free(session_info); return -1;}
+    if (!new_session) {free(session_info); printf("!new_session\n"); return -1;}
+    if (init_session(new_session, session_id, number_of_players, is_visible) == -1) {free(new_session); free(session_info); printf("!init_session\n"); return -1;}
     response_t* response = create_response(P_BUS, new_session->bus->write.event_fd, &new_session->bus->write.queue);
-    if (!response) {free(session_info); cleanup_session(new_session); free(new_session); return -1;}
-    if (add_epoll_event(server->epoll_fd, new_session->bus->write.event_fd, EPOLLIN, response) == -1) {free(response); free(session_info); cleanup_session(new_session); free(new_session); return -1;}
-    if (fd_map_set(server->response, new_session->bus->write.event_fd, response) == -1) {del_epoll_event(server->epoll_fd, new_session->bus->write.event_fd); free(response); free(session_info); cleanup_session(new_session); free(new_session); return -1;}
+    if (!response) {free(session_info); cleanup_session(new_session); free(new_session); printf("!response\n"); return -1;}
+    if (add_epoll_event(server->epoll_fd, new_session->bus->write.event_fd, EPOLLIN, response) == -1) {free(response); free(session_info); cleanup_session(new_session); free(new_session); printf("!epoll_event\n"); return -1;}
+    if (fd_map_set(server->response, new_session->bus->write.event_fd, response) == -1) {del_epoll_event(server->epoll_fd, new_session->bus->write.event_fd); free(response); free(session_info); cleanup_session(new_session); free(new_session); printf("!fd_map_set\n"); return -1;}
 
     session_info->is_visible = is_visible;
     session_info->capacity = number_of_players;
@@ -65,14 +65,14 @@ int create_new_session(server_t* server, const uint8_t number_of_players, const 
     session_info->bus = new_session->bus;
     if (fd_map_set(server->registered_sessions, (int)session_id, session_info) == -1) {
         fd_map_remove(server->response, new_session->bus->write.event_fd);
-        del_epoll_event(server->epoll_fd, new_session->bus->write.event_fd); free(response); free(session_info); cleanup_session(new_session); free(new_session); return -1;
+        del_epoll_event(server->epoll_fd, new_session->bus->write.event_fd); free(response); free(session_info); cleanup_session(new_session); free(new_session); printf("!reg_map_set\n"); return -1;
     }
 
     pthread_t session;
     if (pthread_create(&session, NULL, session_main, new_session) != 0) {
         fd_map_remove(server->registered_sessions, (int)session_id);
         fd_map_remove(server->response, new_session->bus->write.event_fd);
-        del_epoll_event(server->epoll_fd, new_session->bus->write.event_fd); free(response); free(session_info); cleanup_session(new_session); free(new_session); return -1;
+        del_epoll_event(server->epoll_fd, new_session->bus->write.event_fd); free(response); free(session_info); cleanup_session(new_session); free(new_session);printf("!pthread_create\n");  return -1;
     }
     pthread_detach(session);
     return (int)session_id;

@@ -233,10 +233,9 @@ void handle_read(server_t* server, server_conn_t* conn) {
         while (rx->have < sizeof(rx->buf)) {
             const ssize_t n = recv(conn->fd, rx->buf + rx->have, sizeof(rx->buf) - rx->have, 0);
             if (n > 0) {rx->have += n; continue;}
-            if (n == 0) {printf("Вызываем тут очистку 2\n"); cleanup_connection(server, conn); return;}
+            if (n == 0) {cleanup_connection(server, conn); return;}
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            printf("Вызываем тут очистку 3\n");
             perror("server: recv"); cleanup_connection(server, conn); return;
         }
 
@@ -275,7 +274,6 @@ void handle_write(server_t* server, server_conn_t* conn) {
             }
             if (n < 0 && errno == EINTR) continue;
             if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return;
-            printf("Вызываем тут очистку 5\n");
             cleanup_connection(server, conn);
             return;
         }

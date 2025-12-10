@@ -13,7 +13,7 @@
 // TODO add function to check that game is valid
 
 int init_game(game_t* game, const uint8_t nbrLign, const uint8_t nbrCardsLign, const uint8_t nbrCardsPlayer, const uint8_t nbrCards, const uint8_t nbrHead,const uint8_t nb_player) {
-    if (nbrCards <= (uint8_t)(nbrCardsPlayer * nb_player)) return -1;
+    if (nbrCards <= (uint8_t)(nbrCardsPlayer * nb_player)) {printf("What? you know that %d <= %d * %d \n", nbrCards, nbrCardsPlayer, nb_player); return -1;}
 
     game->nbrLign = nbrLign;
     game->nbrCardsLign = nbrCardsLign;
@@ -26,26 +26,26 @@ int init_game(game_t* game, const uint8_t nbrLign, const uint8_t nbrCardsLign, c
     game->nextCards = 0; // TODO rewrite
 
     game->deck = malloc(game->nbrCards * sizeof(card_t));
-    if (!game->deck) return -1;
+    if (!game->deck) {printf("!deck\n"); return -1;}
 
     game->board = malloc((size_t)game->nbrCardsLign * game->nbrLign * sizeof(int));
-    if (!game->board) {free(game->deck); return -1;}
+    if (!game->board) {printf("!board\n"); free(game->deck); return -1;}
     memset(game->board, -1, (size_t)game->nbrCardsLign * game->nbrLign * sizeof(int));
 
     game->card_ready_to_place = malloc(nb_player*sizeof(int));
-    if (!game->card_ready_to_place) {free(game->deck); free(game->board); return -1;}
-    memset(game->card_ready_to_place, -1, nb_player*sizeof(int));
+    if (!game->card_ready_to_place) {printf("!car_ready\n"); free(game->deck); free(game->board); return -1;}
+    memset(game->card_ready_to_place, 0, nb_player*sizeof(int));
     return 0;
 
 }
 
-void cleanup_game(game_t* game) {
+void cleanup_game(const game_t* game) {
     free(game->board);
     free(game->deck);
     free(game->card_ready_to_place);
 }
 
-int distrib_cards(game_t* game, player_t* player, const int nb_player) {
+int distrib_cards(game_t* game, const player_t* player, const int nb_player) {
     game->game_started = 1;
 
     for (int i = 0; i < game->nbrCards; i++) {
@@ -97,11 +97,11 @@ int melange_ids(int* ids, const int length) {
     return 0;
 }
 
-int melange_head(int* ids, const game_t* game) {
+int melange_head(const int* ids, const game_t* game) {
     if (game->nbHead == 0 || game->nbrCards == 0) {
         return -1;
     }
-    int total_poids = game->nbHead * (game->nbHead + 1) / 2;
+    const int total_poids = game->nbHead * (game->nbHead + 1) / 2;
     int current_card_index = 0;
     int cartes_restantes = game->nbrCards;
 
@@ -136,17 +136,15 @@ int melange_head(int* ids, const game_t* game) {
 }
 
 void swap(int* a, int* b) {
-    int temp = *a;
+    const int temp = *a;
     *a = *b;
     *b = temp;
 }
 
 void bubbleSort(int* arr, int n) {
-    int i, j;
-    int swapped;
-    for (i = 0; i < n - 1; i++) {
-        swapped = 0;
-        for (j = 0; j < n - i - 1; j++) {
+    for (int i = 0; i < n - 1; i++) {
+        int swapped = 0;
+        for (int j = 0; j < n - i - 1; j++) {
 
             if (arr[j] > arr[j + 1]) {
                 swap(&arr[j], &arr[j + 1]);
@@ -165,13 +163,12 @@ int placement_card(game_t* game, player_t* player, const uint8_t capacity){
     int bestrow = 0;
     bubbleSort(game->card_ready_to_place,capacity);
 
-    int i = 0;
     for (int k=0;k<capacity;k++){
         if (game->card_ready_to_place[k] != -1) {
-            for (i=0;i<game->nbrLign;i++) {
+            for (int i=0;i<game->nbrLign;i++) {
                 for (int j=0;j<game->nbrCardsLign;j++){
                     const int val = (i*game->nbrCardsLign)+j;
-                    int is_end_of_line = (j == game->nbrCardsLign - 1);
+                    const int is_end_of_line = (j == game->nbrCardsLign - 1);
                     if (game->board[val] > game->card_ready_to_place[k] || (!is_end_of_line && game->board[val+1] != -1)) continue;
 
                     if (game->card_ready_to_place[k] - game->board[val] < best_diff && game->board[val] != -1 ) {
@@ -187,7 +184,7 @@ int placement_card(game_t* game, player_t* player, const uint8_t capacity){
                 }
                 else {
 
-                    takeLigne(game,player,bestrow,k,capacity);
+                    takeLigne(game,player,bestrow,k,capacity); // TODO k change tri blablabla
                 }
             }
             else {
@@ -203,8 +200,9 @@ int placement_card(game_t* game, player_t* player, const uint8_t capacity){
     }
     game->card_ready_to_place_count = 0;
     for (int i = 0; i<capacity;i++) {
-        if (player[i].player_id != 0) {
+        if (player[i].player_id != 0) { // TODO SCORE POINT PKT_END
             if (checking_cards(game,&player[i])) {
+                game->game_started = 0;
                 return -3;
             }
         }
@@ -221,7 +219,7 @@ int takeLigne(game_t* game, player_t* player, const uint8_t numeroLigne, const u
     for (int i=0;i<game->nbrCardsLign;i++) {
         if (game->board[numeroLigne*game->nbrCardsLign+i] == -1) continue;
         player[index].nb_head += game->deck[game->board[numeroLigne*game->nbrCardsLign+i]].numberHead;
-        
+
         if (i==0)
             game->board[numeroLigne*game->nbrCardsLign+i] = game->card_ready_to_place[indexPlayer];
         else

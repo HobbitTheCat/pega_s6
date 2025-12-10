@@ -14,21 +14,24 @@ typedef struct {
     uint8_t nbHead;
     uint8_t nextCards;
 
+    uint32_t extra_wait_from;
+
     int game_started;
 
     card_t* deck;
     int* board;
     int* card_ready_to_place;
     int card_ready_to_place_count;
+
 } game_t;
 
 
 int init_game(game_t* game, uint8_t nbrLign, uint8_t nbrCardsLign, uint8_t nbrCardsPlayer, uint8_t nbrCards, uint8_t nbrHead, uint8_t nb_player);
-void cleanup_game(game_t* game);
+void cleanup_game(const game_t* game);
 
-int distrib_cards(game_t* game, player_t* player,int nb_player);
+int distrib_cards(game_t* game, const player_t* player,int nb_player);
 int melange_ids(int* ids, int length);
-int melange_head(int* ids, const game_t* game);
+int melange_head(const int* ids, const game_t* game);
 
 int placement_card(game_t* game, player_t* player,uint8_t capacity);
 void swap(int* a, int* b);

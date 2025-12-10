@@ -28,6 +28,9 @@ int user_handle_packet(user_t* user, const uint8_t type, const uint8_t* payload,
             return client_handle_request_extra(user, payload, payload_length);
         case PKT_SESSION_END:
             return user_quit_session(user);
+        case PKT_PHASE_RESULT:
+            printf("Phase result\n");
+            return 0;
         default:
             printf("Получен пакет %d\n", type); return 0;
     }
@@ -45,7 +48,7 @@ void user_handle_stdin(user_t* user) {
 
 
 void user_execute_command(user_t* user, const char* cmd) {
-    if (strncmp(cmd, "new", 3) == 0) user_send_create_session(user, 2, 1);
+    if (strncmp(cmd, "new", 3) == 0) user_send_create_session(user, 4, 1);
     else if (strncmp(cmd, "quit_s", 6) == 0) user_send_simple(user, PKT_SESSION_LEAVE);
     else if (strncmp(cmd, "unreg", 5) == 0) user_send_simple(user, PKT_UNREGISTER);
     else if (strncmp(cmd, "dconn", 5) == 0) user_close_connection(user);

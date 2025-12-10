@@ -26,7 +26,7 @@ int game_handle_info_return(session_t* session, const session_message_t* msg){
 
     const player_t* player = &session->players[player_index];
 
-    int real_index = get_real_index_from_visible(player->player_cards_id, session->game->nbrCardsPlayer, pkt->card_id);
+    const int real_index = get_real_index_from_visible(player->player_cards_id, session->game->nbrCardsPlayer, pkt->card_id);
     int card_id = player->player_cards_id[real_index];
 
 
@@ -41,14 +41,21 @@ int game_handle_info_return(session_t* session, const session_message_t* msg){
     session->game->deck[card_id].client_id = msg->data.user.client_id;
     session->game->card_ready_to_place[player_index] = card_id;
     session->game->card_ready_to_place_count += 1;
-
     if (session->game->card_ready_to_place_count >= session->number_players) {
+        for (int i = 0; i < session->capacity; ++i) {
+            if (session->players[i].player_id != 0) continue;
+            session->game->card_ready_to_place[i] = -1;
+        }
         return placement_card(session->game, session->players, session->capacity);
     }
     return 0;
 }
 
 int game_handle_response_extra(session_t* session, const session_message_t* msg) {
+    if (msg->data.user.client_id != session->game->extra_wait_from) {
+        session_send_error_packet(session, msg->data.user.client_id, 0x01, "Unauthorized access");
+        return -1;
+    }
     if (msg->data.user.payload_length < sizeof(pkt_response_extra_payload_t)) {
         session_send_error_packet(session, msg->data.user.client_id, 0x34, "Bad session response extra payload");
         return -1;
@@ -58,6 +65,7 @@ int game_handle_response_extra(session_t* session, const session_message_t* msg)
 
     int index_card_to_place = 0;
     for (int i = 0; i < session->game->card_ready_to_place_count; i++) {
+        if (session->game->card_ready_to_place[i] == -1) continue;
         if (session->game->deck[session->game->card_ready_to_place[i]].client_id == msg->data.user.client_id) break;
         index_card_to_place++;
     }
@@ -103,8 +111,10 @@ int game_send_request_extra(session_t* session, const uint32_t user_id) {
         out_card[index].client_id = card->client_id;
         ++index;
     }
-    printf("User id: %d\n", user_id);
     const int result = session_send_to_player(session, user_id,PKT_REQUEST_EXTRA, payload, payload_length);
+    if (result != -1) {
+        session->game->extra_wait_from = user_id;
+    }
     free(payload);
     return result;
 }

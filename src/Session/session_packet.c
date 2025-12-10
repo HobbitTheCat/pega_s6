@@ -51,6 +51,19 @@ int session_send_error_packet(const session_t* session, const uint32_t user_id, 
     return result;
 }
 
+int session_send_status(const session_t* session) {
+    const size_t payload_length = sizeof(pkt_session_status_payload_t);
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+
+    pkt_session_status_payload_t* packet = (pkt_session_status_payload_t*)payload;
+    packet->capacity = session->capacity;
+    packet->player_count = session->number_players;
+    const int result = session_send_to_player(session, session->id_creator, PKT_SESSION_STATUS, payload, payload_length);
+    free(payload);
+    return result;
+}
+
 int session_send_state(const session_t* session, const uint32_t user_id) {
     const size_t payload_length = sizeof(pkt_session_state_payload_t);
 
@@ -58,6 +71,7 @@ int session_send_state(const session_t* session, const uint32_t user_id) {
     if (!payload) return -1;
 
     pkt_session_state_payload_t* packet = (pkt_session_state_payload_t*)payload;
+    packet->session_id = session->id;
     packet->nbrLign = session->game->nbrLign;
     packet->nbrCardsLign = session->game->nbrCardsLign;
     packet->nbrCardsPlayer = session->game->nbrCardsPlayer;

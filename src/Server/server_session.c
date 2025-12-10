@@ -82,12 +82,12 @@ int unregister_session(const server_t* server, const uint32_t session_id) {
     server_session_t* session_info = fd_map_get(server->registered_sessions, (int)session_id);
     if (!session_info) return -1;
     const session_bus_t* bus = session_info->bus;
-    send_system_message_to_session(server, session_id, 0, SESSION_UNREGISTERED);
     del_epoll_event(server->epoll_fd, bus->write.event_fd);
     response_t* response = fd_map_get(server->response, bus->write.event_fd);
     if (response) {fd_map_remove(server->response, bus->write.event_fd); free(response);}
     fd_map_remove(server->registered_sessions, (int)session_id);
     free(session_info);
+    send_system_message_to_session(server, session_id, 0, SESSION_UNREGISTERED);
     return 0;
 }
 
@@ -119,8 +119,8 @@ void handle_bus_message(server_t* server, const response_t* response) {
         const int received = buffer_pop(response->ptr, &message);
         if (received == BUFFER_EEMPTY) break;
         if (received == BUFFER_SUCCESS && message) {
-            printf("Received return message type\n");
-            print_session_message(message);
+            // printf("Received return message type\n");
+            // print_session_message(message);
             if (message->type == USER_MESSAGE) {
                 const server_player_t* player = fd_map_get(server->registered_players, (int)message->data.user.client_id);
                 if (player && player->conn) send_packet(server, player->conn, message->data.user.packet_type, message->data.user.buf, message->data.user.payload_length);

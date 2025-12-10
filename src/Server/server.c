@@ -251,7 +251,7 @@ void handle_read(server_t* server, server_conn_t* conn) {
                 cleanup_connection(server, conn);
                 return;
             }
-            handle_packet_main(server, conn, header.type, payload, payload_len);
+            if (handle_packet_main(server, conn, header.type, payload, payload_len) < 0) return;
         }
         if (rx->have < sizeof(rx->buf)) break;
         if (rx->have == sizeof(rx->buf)) {
@@ -262,20 +262,20 @@ void handle_read(server_t* server, server_conn_t* conn) {
     }
 }
 
-void handle_write(server_t* server, server_conn_t* conn) {
+int handle_write(server_t* server, server_conn_t* conn) {
     while (conn->tx.head) {
         out_chunk_t* chunk = conn->tx.head;
         while (chunk->off < chunk->len) {
             const ssize_t n = send(conn->fd, chunk->data + chunk->off, chunk->len - chunk->off, MSG_NOSIGNAL);
             if (n > 0) {
-                chunk -> off += (uint32_t)n;
+                chunk->off += (uint32_t)n;
                 conn->tx.queued -= (size_t)n;
                 continue;
             }
             if (n < 0 && errno == EINTR) continue;
-            if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return;
+            if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return 0;
             cleanup_connection(server, conn);
-            return;
+            return -1;
         }
         conn->tx.head = chunk->next;
         if (!conn->tx.head) conn->tx.tail = NULL;
@@ -288,6 +288,7 @@ void handle_write(server_t* server, server_conn_t* conn) {
             fd_map_get(server->response, conn->fd));
         conn->want_epollout = 0;
     }
+    return 0;
 }
 
 response_t* create_response(const pointer_type_t type,const int fd, void* ptr) {

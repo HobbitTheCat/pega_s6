@@ -10,10 +10,11 @@ typedef struct {
 
 typedef struct {
     user_t user;
-
     uint32_t session_id;
     int index_row_to_take;
     int is_creator;
+
+    
 } bot_t;
 
 int bot_init(bot_t* user);

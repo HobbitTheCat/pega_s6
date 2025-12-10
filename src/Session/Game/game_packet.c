@@ -6,52 +6,51 @@
 #include "Protocol/protocol.h"
 #include "Session/session.h"
 
-int get_real_index_from_visible(const int* cards, int len, int visible_idx) {
+int get_real_index_from_visible(const int* cards, const int len, const int visible_idx) {
     int v = 0;
     for (int i = 0; i < len; ++i) {
         if (cards[i] == -1) continue;
         if (v == visible_idx) return i;
         v++;
     }
-    return -1; // нет такой карты
+    return -1; // no such card
 }
 
-int game_handle_info_return(session_t* session, const session_message_t* msg){
+int game_handle_info_return(session_t* session, const session_message_t* msg) {
+    if (session->game->game_state != WAITING) {printf("Phase id not Waiting it is %d\n", session->game->game_state); return -1;}
     if (msg->data.user.payload_length < sizeof(pkt_session_info_return_payload_t)) {
-        session_send_error_packet(session, msg->data.user.client_id, 0x34, "Bad session info return payload");
+        session_send_error_packet(session, msg->data.user.client_id, 0x34, "Bad session info return payload\n");
         return -1;
     }
     const pkt_session_info_return_payload_t* pkt = (const pkt_session_info_return_payload_t*)msg->data.user.buf;
     const uint8_t player_index = get_index_by_id(session, msg->data.user.client_id);
+    if (session->game->card_ready_to_place[player_index] != -1){printf("Card_ready to place for this player is %d\n", session->game->card_ready_to_place[player_index]); return -1;}
 
     const player_t* player = &session->players[player_index];
+    const int real_card_index = get_real_index_from_visible(player->player_cards_id, session->game->nbrCardsPlayer, pkt->card_id);
+    if (real_card_index == -1) {printf("Got index < %d for index %d (player_id: %d)\n", real_card_index, pkt->card_id, msg->data.user.client_id); return -1;}
+    if (player->player_cards_id[real_card_index] == -1) {printf("Player has already played card with real index %d\n", real_card_index); return -1;}
 
-    const int real_index = get_real_index_from_visible(player->player_cards_id, session->game->nbrCardsPlayer, pkt->card_id);
-    int card_id = player->player_cards_id[real_index];
-
-
-    if (card_id == -1) {
-        unsigned int buffer;
-        if (getrandom(&buffer, sizeof(buffer), 0) != sizeof(buffer)) return -1;
-        card_id = (int)(buffer % (unsigned)( session->game->nbrCardsPlayer + 1));
-    }
-
-    player->player_cards_id[real_index] = -1;
+    const int card_id = player->player_cards_id[real_card_index];
+    player->player_cards_id[real_card_index] = -1;
 
     session->game->deck[card_id].client_id = msg->data.user.client_id;
     session->game->card_ready_to_place[player_index] = card_id;
     session->game->card_ready_to_place_count += 1;
+    printf("Card_ready to place %d\n", session->game->card_ready_to_place_count);
     if (session->game->card_ready_to_place_count >= session->number_players) {
+        session->game->game_state = PLAYING;
         for (int i = 0; i < session->capacity; ++i) {
             if (session->players[i].player_id != 0) continue;
             session->game->card_ready_to_place[i] = -1;
         }
-        return placement_card(session->game, session->players, session->capacity);
+        return place_card(session->game, session->players, session->capacity);
     }
     return 0;
 }
 
 int game_handle_response_extra(session_t* session, const session_message_t* msg) {
+    if (session->game->game_state != WAITING_EXTRA) return -1;
     if (msg->data.user.client_id != session->game->extra_wait_from) {
         session_send_error_packet(session, msg->data.user.client_id, 0x01, "Unauthorized access");
         return -1;
@@ -63,15 +62,10 @@ int game_handle_response_extra(session_t* session, const session_message_t* msg)
     const pkt_response_extra_payload_t* pkt = (const pkt_response_extra_payload_t*)msg->data.user.buf;
     const int16_t row_index = pkt->row_index;
 
-    int index_card_to_place = 0;
-    for (int i = 0; i < session->game->card_ready_to_place_count; i++) {
-        if (session->game->card_ready_to_place[i] == -1) continue;
-        if (session->game->deck[session->game->card_ready_to_place[i]].client_id == msg->data.user.client_id) break;
-        index_card_to_place++;
-    }
+    const int index_card_to_place = get_index_by_id(session, msg->data.user.client_id);
 
-    takeLigne(session->game,session->players, row_index, index_card_to_place,session->capacity);
-    return placement_card(session->game,session->players,session->capacity);
+    take_line(session->game, session->players, row_index, index_card_to_place);
+    return place_card(session->game, session->players, session->capacity);
 }
 
 int game_send_request_extra(session_t* session, const uint32_t user_id) {

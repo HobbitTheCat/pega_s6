@@ -45,7 +45,7 @@ int enqueue_message(server_t* server, server_conn_t* conn, uint8_t* buffer, cons
     else {conn->tx.tail->next = chunk; conn->tx.tail = chunk;}
 
     conn->tx.queued += total_length;
-    handle_write(server, conn);
+    if (handle_write(server, conn) < 0) return -1;
 
     if (conn->tx.head && conn->want_epollout == 0) {
         mod_epoll_event(server->epoll_fd, conn->fd,

@@ -29,12 +29,12 @@ int handle_system_message(session_t* session, session_message_t* msg) {
             if (session->number_players == 0) {session->id_creator = client_id; session->unregister_send = 0;}
             if (get_index_by_id(session, client_id) != -1) {
                 session_send_error_packet(session, client_id, 0x02, "User already registered"); break;}
-            if (session->game->game_started == 1) {
+            if (session->game->game_state != INACTIVE) {
                 session_send_error_packet(session, client_id, 0x08, "Game in progress please wait"); break;}
             add_player(session, client_id);
             session_send_state(session, client_id);
+            if (client_id != session->id_creator) session_send_status(session);
             send_system_message_to_server(session, client_id, USER_CONNECTED);
-            session_send_status(session);
             break;
         case PKT_SESSION_SET_GAME_RULES:
             session_handle_set_rules(session, msg);
@@ -98,13 +98,21 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
             }
             break;
         case PKT_RESPONSE_EXTRA:
-            if (game_handle_response_extra(session, msg) != -1) {
+            const int extra_result = game_handle_response_extra(session, msg);
+            if (extra_result == -1) break;
+            if (extra_result == -2) {
                 for (int i = 0; (size_t)i < session->capacity; i++) {
                     const player_t* player = &session->players[i];
                     if (player->player_id == 0) continue;
                     session_send_info(session, player->player_id);
                 }
-            }
+            } else if (extra_result == -3) {
+                for (int i = 0; (size_t)i < session->capacity; i++) {
+                    const player_t* player = &session->players[i];
+                    if (player->player_id == 0) continue;
+                    session_send_simple_packet(session, player->player_id, PKT_PHASE_RESULT);
+                }
+            } else printf("Unknown extra result %d\n", extra_result);
             break;
         default:
             printf("Received packet: %d\n", msg->data.user.packet_type);

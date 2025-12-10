@@ -208,9 +208,11 @@ int user_handle_write(user_t* user) {
             if (n < 0 && errno == EINTR) continue;
             if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return 0;
             perror("Client: send");
+            out_chunk_t* nex_chunk = chunk->next;
             free(chunk->data);
             free(chunk);
-            user->tx.head = user->tx.head->next;
+            user->tx.head = nex_chunk;
+            if (user->tx.head == NULL) user->tx.tail = NULL;
             return -1;
         }
         user->tx.head = chunk->next;

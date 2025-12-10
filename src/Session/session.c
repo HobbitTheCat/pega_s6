@@ -96,7 +96,7 @@ void* session_main(void* arg) {
                 const int received = buffer_pop(read_buffer, &msg);
                 if (received == BUFFER_EEMPTY) break;
                 if (received == BUFFER_SUCCESS && msg) {
-                    print_session_message(msg);
+                    // print_session_message(msg);
                     if (handle_system_message(session, msg) > 0) continue;
                     handle_game_message(session, msg);
 

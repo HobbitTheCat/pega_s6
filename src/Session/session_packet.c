@@ -180,7 +180,7 @@ int session_handle_set_rules(session_t* session, session_message_t* msg) {
         session_send_error_packet(session, msg->data.user.client_id, 0x34, "Bad session set rules payload");
         return -1;
     }
-    if (session->game->game_started == 1) {
+    if (session->game->game_state != INACTIVE) {
         session_send_error_packet(session, msg->data.user.client_id, 0x34, "Session already started");
         return -1;
     }

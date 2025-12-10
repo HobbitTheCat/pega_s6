@@ -49,12 +49,12 @@ void cleanup_response(response_t* response);
 
 void handle_accept(const server_t* server);
 void handle_read(server_t* server, server_conn_t* conn);
-void handle_write(server_t* server, server_conn_t* conn);
+int handle_write(server_t* server, server_conn_t* conn);
 
 int enqueue_message(server_t* server, server_conn_t* conn, uint8_t* buffer, uint32_t total_length) ;
 int send_packet(server_t* server, server_conn_t* conn, uint8_t type, const void* payload, uint16_t payload_length);
 
-void handle_packet_main(server_t* server, server_conn_t* conn, uint8_t packet_type, const uint8_t* payload, uint16_t payload_length);
+int handle_packet_main(server_t* server, server_conn_t* conn, uint8_t packet_type, const uint8_t* payload, uint16_t payload_length);
 
 // Session manager
 int send_message_to_session(const server_t* server, uint32_t session_id, uint32_t user_id, uint8_t packet_type, const uint8_t* payload, uint16_t payload_length);

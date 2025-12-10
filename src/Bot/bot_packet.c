@@ -28,7 +28,10 @@ int bot_handle_packet(bot_t* bot, const uint8_t type, const uint8_t* payload, co
         case PKT_ERROR:
             printf("Error\n");
         case PKT_PHASE_RESULT: //TODO delete phase result here
+            printf("Got phase result\n");
         case PKT_SESSION_END:
+            bot_send_simple(bot, PKT_SESSION_LEAVE);
+            sleep(1);
             bot_send_simple(bot, PKT_UNREGISTER);
             bot->user.is_running = 0;
             user_close_connection(&bot->user);
@@ -69,6 +72,7 @@ int bot_handle_session_state(bot_t* bot, const uint8_t* payload, const uint16_t 
 
     const pkt_session_state_payload_t* pkt = (pkt_session_state_payload_t*) payload;
     user_join_session(&bot->user, pkt->nbrLign, pkt->nbrCardsLign, pkt->nbrCardsPlayer);
+    printf("Pkt session_state session id: %d", pkt->session_id);
     bot->session_id = pkt->session_id;
     return 0;
 }

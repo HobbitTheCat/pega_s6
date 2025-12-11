@@ -17,6 +17,8 @@ int init_session(session_t* session, const uint32_t session_id, const uint8_t ca
     if (init_game(session->game, 4, 5, 10, 104, 5, capacity) == -1) {free(session->game); printf("!init_game\n"); return -1;}
     session->capacity = capacity;
     session->number_players = 0;
+    session->left_count = 0;
+
     session->is_visible = is_visible;
     session->id = session_id;
     session->unregister_send = 1;

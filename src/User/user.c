@@ -57,7 +57,7 @@ int user_connect(user_t* user, const char* host, const uint16_t port) {
             perror("Client: connect");
             close(user->sockfd); user->sockfd = -1; return -1;
         }
-            }
+    }
 
     user->fds[0].fd = STDIN_FILENO;
     user->fds[0].events = POLLIN;
@@ -66,12 +66,8 @@ int user_connect(user_t* user, const char* host, const uint16_t port) {
     user->want_pollout = 0;
     user->nfds = 2;
 
-    uint8_t* buffer = malloc(PROTOCOL_MAX_SIZE);
-    if (!buffer) return -1;
-    const int packet_size = user_send_simple(user, PKT_HELLO);
-    user_enqueue_message(user, buffer, packet_size);
+    user_send_simple(user, PKT_HELLO);
 
-    free(buffer);
     return 0;
 }
 

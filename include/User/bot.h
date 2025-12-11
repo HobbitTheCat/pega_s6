@@ -8,13 +8,22 @@ typedef struct {
     int bulls_sum;
 } row_t;
 
+typedef enum {
+    BOT_STATE_CONNECTING,
+    BOT_STATE_IDLE,
+    BOT_STATE_WAITING_TIMER,
+    BOT_STATE_DISCONNECTED
+} bot_state_machine_t;
+
 typedef struct {
     user_t user;
     uint32_t session_id;
     int index_row_to_take;
     int is_creator;
 
-    
+    bot_state_machine_t state;
+    time_t next_action_time;
+    int id;
 } bot_t;
 
 int bot_init(bot_t* user);
@@ -36,7 +45,6 @@ int bot_handle_session_info(bot_t* bot, const uint8_t* payload, uint16_t payload
 int bot_send_resp_extra(bot_t* bot);
 
 int bot_handle_sync_state(bot_t* bot, const uint8_t* payload, uint16_t payload_length);
-int bot_handle_session_status(bot_t* bot, const uint8_t* payload, uint16_t payload_length);
 int bot_handle_session_state(bot_t* bot, const uint8_t* payload, uint16_t payload_length);
 
 // Game

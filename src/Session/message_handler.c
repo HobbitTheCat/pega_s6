@@ -11,6 +11,20 @@ int handle_system_message(session_t* session, session_message_t* msg) {
         switch (msg->data.system.type) {
             case USER_UNREGISTER:
                 remove_player(session, msg->data.system.user_id); break;
+            case USER_LEFT:
+                // session->left_count++;
+                // printf("User left left_count %lu nb player %lu\n", session->left_count, session->number_players);
+                // if (session->left_count >= session->number_players) {
+                //     for (int i = 0; (size_t)i < session->capacity; i++) {
+                //         const player_t* player = &session->players[i];
+                //         const uint32_t player_id = player->player_id;
+                //         if (player_id== 0) continue;
+                //         remove_player(session, player_id);
+                //         send_system_message_to_server(session, player_id, USER_DISCONNECTED);
+                //     }
+                //     send_unregister(session);
+                // }
+                break;
             case SESSION_UNREGISTERED:
                 session->running = 0;
                 const uint64_t wake_up = 1;
@@ -33,7 +47,6 @@ int handle_system_message(session_t* session, session_message_t* msg) {
                 session_send_error_packet(session, client_id, 0x08, "Game in progress please wait"); break;}
             add_player(session, client_id);
             session_send_state(session, client_id);
-            if (client_id != session->id_creator) session_send_status(session);
             send_system_message_to_server(session, client_id, USER_CONNECTED);
             break;
         case PKT_SESSION_SET_GAME_RULES:
@@ -53,12 +66,13 @@ int handle_system_message(session_t* session, session_message_t* msg) {
                 session_send_error_packet(session, client_id, 0x01, "Unauthorized access"); break;}
             for (int i = 0; (size_t)i < session->capacity; i++) {
                 const player_t* player = &session->players[i];
-                if (player->player_id == 0) continue;
-                remove_player(session, player->player_id);
-                session_send_simple_packet(session, client_id, PKT_SESSION_END);
-                send_system_message_to_server(session, client_id, USER_DISCONNECTED);
+                const uint32_t player_id = player->player_id;
+                if (player_id== 0) continue;
+                remove_player(session, player_id);
+                session_send_simple_packet(session, player_id, PKT_SESSION_END);
+                send_system_message_to_server(session, player_id, USER_DISCONNECTED);
             }
-            send_unregister(session);
+            if (session->unregister_send == 0) send_unregister(session);
             return 1;
         default: return 0;
     }

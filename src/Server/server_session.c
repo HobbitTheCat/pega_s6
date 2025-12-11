@@ -126,9 +126,13 @@ void handle_bus_message(server_t* server, const response_t* response) {
                 if (player && player->conn) send_packet(server, player->conn, message->data.user.packet_type, message->data.user.buf, message->data.user.payload_length);
             } else {
                 const system_message_type_t msg_type = message->data.system.type;
-                if (msg_type == SESSION_UNREGISTER) unregister_session(server,  message->data.system.session_id);
+                if (msg_type == SESSION_UNREGISTER) {
+                    printf("Got unreg for %d\n", message->data.system.session_id);
+                    unregister_session(server,  message->data.system.session_id);
+                }
                 else {
                     server_player_t* player = fd_map_get(server->registered_players, (int)message->data.system.user_id);
+                    if (!player) break;
                     server_session_t* session_info = fd_map_get(server->registered_sessions, (int)message->data.system.session_id);
                     if (msg_type == USER_CONNECTED) {
                         session_info->number_players += 1;

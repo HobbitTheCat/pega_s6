@@ -22,7 +22,6 @@ typedef enum {
     PKT_SESSION_LIST = 101,
 
     PKT_SESSION_JOIN = 10,
-    PKT_SESSION_STATUS = 18,
     PKT_SESSION_LEAVE = 11,
     PKT_SESSION_CREATE = 12,
     PKT_SESSION_CLOSE = 13,
@@ -114,14 +113,6 @@ typedef struct {
 typedef struct {
     uint32_t session_id;
 } pkt_session_join_payload_t;
-#pragma pack(pop)
-
-// PKT_SESSION_STATUS
-#pragma pack(push, 1)
-typedef struct {
-    uint16_t capacity;
-    uint16_t player_count;
-} pkt_session_status_payload_t;
 #pragma pack(pop)
 
 // PKT_SESSION_STATE

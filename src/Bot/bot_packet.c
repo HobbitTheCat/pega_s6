@@ -17,8 +17,6 @@ int bot_handle_packet(bot_t* bot, const uint8_t type, const uint8_t* payload, co
                 user_send_create_session(&bot->user, 4, 0);
             }
             return 0;
-        case PKT_SESSION_STATUS:
-            return bot_handle_session_status(bot, payload, payload_length);
         case PKT_SESSION_STATE:
             return bot_handle_session_state(bot, payload, payload_length);
         case PKT_SESSION_INFO:
@@ -59,20 +57,11 @@ int bot_handle_sync_state(bot_t* bot, const uint8_t* payload, const uint16_t pay
     return client_handle_sync_state(&bot->user, payload, payload_length);
 }
 
-int bot_handle_session_status(bot_t* bot, const uint8_t* payload, const uint16_t payload_length) {
-    if (payload_length < sizeof(pkt_session_status_payload_t)) return -1;
-
-    const pkt_session_status_payload_t* pkt = (pkt_session_status_payload_t*) payload;
-    if (pkt->capacity == pkt->player_count) bot_send_simple(bot, PKT_START_SESSION);
-    return 0;
-}
-
 int bot_handle_session_state(bot_t* bot, const uint8_t* payload, const uint16_t payload_length) {
     if (payload_length < sizeof(pkt_session_state_payload_t)) return -1;
 
     const pkt_session_state_payload_t* pkt = (pkt_session_state_payload_t*) payload;
     user_join_session(&bot->user, pkt->nbrLign, pkt->nbrCardsLign, pkt->nbrCardsPlayer);
-    printf("Pkt session_state session id: %d", pkt->session_id);
     bot->session_id = pkt->session_id;
     return 0;
 }

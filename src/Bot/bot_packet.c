@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "User/bot.h"
@@ -54,15 +55,18 @@ int bot_send_resp_extra(bot_t* bot) {
 
 
 int bot_handle_sync_state(bot_t* bot, const uint8_t* payload, const uint16_t payload_length) {
-    return client_handle_sync_state(&bot->user, payload, payload_length);
+    client_handle_sync_state(&bot->user, payload, payload_length);
+    printf("Bot id^ %d\n", bot->user.client_id);
+    return 0;
 }
 
 int bot_handle_session_state(bot_t* bot, const uint8_t* payload, const uint16_t payload_length) {
     if (payload_length < sizeof(pkt_session_state_payload_t)) return -1;
 
     const pkt_session_state_payload_t* pkt = (pkt_session_state_payload_t*) payload;
-    user_join_session(&bot->user, pkt->nbrLign, pkt->nbrCardsLign, pkt->nbrCardsPlayer);
+    user_join_session(&bot->user, pkt->max_card_value, pkt->nbrLign, pkt->nbrCardsLign, pkt->nbrCardsPlayer);
     bot->session_id = pkt->session_id;
+    bot->placed_cards = calloc(pkt->max_card_value, sizeof(int));
     return 0;
 }
 

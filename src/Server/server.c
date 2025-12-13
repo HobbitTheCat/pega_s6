@@ -14,6 +14,8 @@
 #include <sys/epoll.h>
 #include <netinet/tcp.h>
 
+#include "log_bus.h"
+
 int create_listen_socket(const int port) {
     const int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {perror("server_init: socket"); return -1;}
@@ -168,8 +170,8 @@ void* server_main(void* arg) {
     struct epoll_event events[MAX_EVENTS];
     // TODO если во время внутреннего цикла первым сообщением освобождается клиент а вторым приходит ему лично то происходит NULL POINTER EXCEPTION решение - видимо стэк
     while (server->running) {
-        int const n = epoll_wait(server->epoll_fd, events, MAX_EVENTS, -1); // TODO убрать 20
-        if (n == -1){ if (errno == EINTR) continue; perror("server: epoll_wait"); cleanup_server(server); break;}
+        int const n = epoll_wait(server->epoll_fd, events, MAX_EVENTS, -1);
+        if (n == -1){ if (errno == EINTR) continue; log_bus_push_message(server->log_bus, 0, LOG_ERROR, "Server epoll wait"); cleanup_server(server); break;}
 
         for (int i = 0; i < n; i++) {
             const uint32_t event = events[i].events;
@@ -178,7 +180,7 @@ void* server_main(void* arg) {
 
             if (event & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
                 if (response->type == P_CLIENT) {
-                    printf("Вызываем тут очистку 1\n");
+                    log_bus_push_message(server->log_bus, 0, LOG_INFO, "CLient disconnected");
                     cleanup_connection(server, response->ptr);
                 }
                 continue;
@@ -222,6 +224,7 @@ void handle_accept(const server_t* server) {
         }
 
         fd_map_set(server->response, client_fd, response);
+        log_bus_push_message(server->log_bus, 0, LOG_INFO, "server: accepted connection from %s\n");
         printf("server: accepted connection from %s\n", inet_ntoa(client_address.sin_addr));
     }
 }

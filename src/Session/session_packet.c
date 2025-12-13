@@ -59,6 +59,7 @@ int session_send_state(const session_t* session, const uint32_t user_id) {
 
     pkt_session_state_payload_t* packet = (pkt_session_state_payload_t*)payload;
     packet->session_id = session->id;
+    packet->max_card_value = session->game->nbrCards;
     packet->nbrLign = session->game->nbrLign;
     packet->nbrCardsLign = session->game->nbrCardsLign;
     packet->nbrCardsPlayer = session->game->nbrCardsPlayer;
@@ -99,12 +100,10 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
     uint8_t* payload = malloc(payload_length);
     if (!payload) return -1;
 
-    // ---- header ----
     pkt_session_info_payload_t* header = (pkt_session_info_payload_t*)payload;
     header->hand_count   = hand_count;
     header->player_count = active_player_count;
 
-    // ---- scores ----
     pkt_player_score_t* scores_out = (pkt_player_score_t*)(header + 1);
     int p_idx = 0;
     for (int i = 0; (size_t)i < session->capacity; i++) {
@@ -115,9 +114,7 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
         scores_out[p_idx].nb_head   = p->nb_head;
         p_idx++;
     }
-    // опционально: assert(p_idx == active_player_count);
 
-    // ---- board ----
     pkt_card_t* out = (pkt_card_t*)(scores_out + active_player_count);
 
     for (uint16_t i = 0; i < board_len; i++) {
@@ -134,7 +131,6 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
         }
     }
 
-    // ---- hand ----
     uint16_t idx = 0;
     for (uint16_t i = 0; i < game->nbrCardsPlayer; i++) {
         const int card_index = player->player_cards_id[i];
@@ -148,7 +144,6 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
         dst->client_id  = card->client_id;
         idx++;
     }
-    // опционально: assert(idx == hand_count);
 
     const int result = session_send_to_player(session, user_id,
                                               PKT_SESSION_INFO,

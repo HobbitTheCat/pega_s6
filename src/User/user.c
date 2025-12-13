@@ -222,7 +222,8 @@ int user_handle_write(user_t* user) {
     }
     return 0;
 }
-int user_join_session(user_t* user, const uint8_t nb_line, const uint8_t nb_card_line, const uint8_t nb_card_player) {
+int user_join_session(user_t* user, const uint16_t max_card_value, const uint8_t nb_line, const uint8_t nb_card_line, const uint8_t nb_card_player) {
+    user->max_card_value = max_card_value;
     user->nb_line = nb_line;
     user->nb_card_line = nb_card_line;
     user->nb_card_player = nb_card_player;
@@ -231,6 +232,7 @@ int user_join_session(user_t* user, const uint8_t nb_line, const uint8_t nb_card
     return 0;
 }
 int user_quit_session(user_t* user) {
+    user->max_card_value = 0;
     user->nb_line = 0;
     user->nb_card_line = 0;
     user->nb_card_player = 0;

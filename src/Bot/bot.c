@@ -4,13 +4,16 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int bot_init(bot_t* bot) {
     bot->session_id = 0;
+    bot->level = 0;
     return user_init(&bot->user);
 }
 
 void bot_cleanup(bot_t* bot) {
+    free(bot->placed_cards); // Double free
     user_cleanup(&bot->user);
 }
 
@@ -18,8 +21,9 @@ int bot_connect(bot_t* bot, const char* host, const uint16_t port) {
     return user_connect(&bot->user, host, port);
 }
 
-int bot_start(bot_t* bot, const char* host, const uint16_t port, const uint32_t session_id) {
+int bot_start(bot_t* bot, const char* host, const uint16_t port, const uint32_t session_id, const uint8_t level) {
     bot->session_id = session_id;
+    bot->level = level;
     if (bot_connect(bot, host, port) < 0) return -1;
     return bot_run(bot);
 }

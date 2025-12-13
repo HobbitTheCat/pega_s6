@@ -21,7 +21,7 @@ int init_session(session_t* session, const uint32_t session_id, const uint8_t ca
 
     session->is_visible = is_visible;
     session->id = session_id;
-    session->unregister_send = 1;
+    session->unregister_send = 0;
     session->timer_fd = -1;
 
 
@@ -81,6 +81,7 @@ void* session_main(void* arg) {
 
     while (session->running) {
         const int n = poll(fds, nfds, -1);
+        if (session->unregister_send == 1) continue;
         if (n < 0) {if (errno == EINTR) continue; perror("session: poll"); break;}
         if (fds[0].revents & POLLIN) {
             uint64_t count = 0;

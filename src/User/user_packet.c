@@ -241,7 +241,7 @@ int client_handle_session_state(user_t* user, const uint8_t* payload, const uint
     }
 
     const pkt_session_state_payload_t* pkt = (pkt_session_state_payload_t*) payload;
-    user_join_session(user, pkt->nbrLign, pkt->nbrCardsLign, pkt->nbrCardsPlayer);
+    user_join_session(user, pkt->max_card_value, pkt->nbrLign, pkt->nbrCardsLign, pkt->nbrCardsPlayer);
     printf("Session id: %d\n", pkt->session_id);
     return 0;
 }

@@ -10,20 +10,23 @@ int handle_system_message(session_t* session, session_message_t* msg) {
     if (msg->type == SYSTEM_MESSAGE) {
         switch (msg->data.system.type) {
             case USER_UNREGISTER:
-                remove_player(session, msg->data.system.user_id); break;
+                remove_player(session, msg->data.system.user_id);
+                const int result = start_move(session);
+                handle_result_of_play(session, result);
+                break;
             case USER_LEFT:
-                // session->left_count++;
-                // printf("User left left_count %lu nb player %lu\n", session->left_count, session->number_players);
-                // if (session->left_count >= session->number_players) {
-                //     for (int i = 0; (size_t)i < session->capacity; i++) {
-                //         const player_t* player = &session->players[i];
-                //         const uint32_t player_id = player->player_id;
-                //         if (player_id== 0) continue;
-                //         remove_player(session, player_id);
-                //         send_system_message_to_server(session, player_id, USER_DISCONNECTED);
-                //     }
-                //     send_unregister(session);
-                // }
+                session->left_count++;
+                printf("User left left_count %lu nb player %lu\n", session->left_count, session->number_players);
+                if (session->left_count >= session->number_players) {
+                    for (int i = 0; (size_t)i < session->capacity; i++) {
+                        const player_t* player = &session->players[i];
+                        const uint32_t player_id = player->player_id;
+                        if (player_id== 0) continue;
+                        remove_player(session, player_id);
+                        send_system_message_to_server(session, player_id, USER_DISCONNECTED);
+                    }
+                    send_unregister(session);
+                }
                 break;
             case SESSION_UNREGISTERED:
                 session->running = 0;
@@ -59,6 +62,8 @@ int handle_system_message(session_t* session, session_message_t* msg) {
                 send_system_message_to_server(session, client_id, USER_DISCONNECTED);
             } else
                 session_send_error_packet(session, client_id, 0x03, "User not in session");
+            const int result = start_move(session);
+            handle_result_of_play(session, result);
             break;
         }
         case PKT_SESSION_CLOSE:
@@ -79,6 +84,28 @@ int handle_system_message(session_t* session, session_message_t* msg) {
     return 1;
 }
 
+int handle_result_of_play(session_t* session, const int result) {
+    if (result > 0){
+        game_send_request_extra(session, result);
+    } else if (result == -2) {
+        for (int i = 0; (size_t)i < session->capacity; i++) {
+            const player_t* player = &session->players[i];
+            if (player->player_id == 0) continue;
+            session_send_info(session, player->player_id);
+        }
+    } else if (result == -3) {
+        printf("Phase result:");
+        for (int i = 0; (size_t)i < session->capacity; i++) {
+            const player_t* player = &session->players[i];
+            if (player->player_id == 0) continue;
+            printf("(%d: %d)", player->player_id, player->nb_head);
+            session_send_simple_packet(session, player->player_id, PKT_PHASE_RESULT);
+        }
+        printf("\n");
+    } else if (result != 0) printf("Unknown extra result %d\n", result);
+    return 0;
+}
+
 int handle_game_message(session_t* session, const session_message_t* msg) {
     switch (msg->data.user.packet_type) {
         case PKT_START_SESSION:
@@ -94,39 +121,13 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
             }
             break;
         case PKT_SESSION_INFO_RETURN:
-            const int result = game_handle_info_return(session, msg);
-            if (result > 0){
-                game_send_request_extra(session, result);
-            } else if (result == -2) {
-                for (int i = 0; (size_t)i < session->capacity; i++) {
-                    const player_t* player = &session->players[i];
-                    if (player->player_id == 0) continue;
-                    session_send_info(session, player->player_id);
-                }
-            } else if (result == -3) {
-                for (int i = 0; (size_t)i < session->capacity; i++) {
-                    const player_t* player = &session->players[i];
-                    if (player->player_id == 0) continue;
-                    session_send_simple_packet(session, player->player_id, PKT_PHASE_RESULT);
-                }
-            }
+            game_handle_info_return(session, msg);
+            const int result = start_move(session);
+            handle_result_of_play(session, result);
             break;
         case PKT_RESPONSE_EXTRA:
             const int extra_result = game_handle_response_extra(session, msg);
-            if (extra_result == -1) break;
-            if (extra_result == -2) {
-                for (int i = 0; (size_t)i < session->capacity; i++) {
-                    const player_t* player = &session->players[i];
-                    if (player->player_id == 0) continue;
-                    session_send_info(session, player->player_id);
-                }
-            } else if (extra_result == -3) {
-                for (int i = 0; (size_t)i < session->capacity; i++) {
-                    const player_t* player = &session->players[i];
-                    if (player->player_id == 0) continue;
-                    session_send_simple_packet(session, player->player_id, PKT_PHASE_RESULT);
-                }
-            } else printf("Unknown extra result %d\n", extra_result);
+            handle_result_of_play(session, extra_result);
             break;
         default:
             printf("Received packet: %d\n", msg->data.user.packet_type);

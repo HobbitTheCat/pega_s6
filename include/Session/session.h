@@ -42,6 +42,7 @@ void cleanup_session(session_t* session);
 
 void* session_main(void* arg);
 int handle_system_message(session_t* session, session_message_t* msg);
+int handle_result_of_play(session_t* session, int result);
 int handle_game_message(session_t* session, const session_message_t* msg);
 
 int session_send_to_player(const session_t* session, uint32_t user_id, uint8_t packet_type, const void* payload, uint16_t payload_length);
@@ -61,6 +62,7 @@ int session_send_info(const session_t* session, uint32_t user_id);
 
 int session_handle_set_rules(session_t* session, session_message_t* msg);
 
+int start_move(const session_t* session);
 int game_handle_info_return(session_t* session, const session_message_t* msg);
 int game_handle_response_extra(session_t* session, const session_message_t* msg);
 int game_send_request_extra(session_t* session, uint32_t user_id);

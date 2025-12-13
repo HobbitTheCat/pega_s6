@@ -28,6 +28,7 @@ typedef struct {
     _Atomic int is_running;
 
     // Session
+    uint16_t max_card_value;
     uint8_t nb_line;
     uint8_t nb_card_line;
     uint8_t nb_card_player;
@@ -56,7 +57,7 @@ int user_send_packet(user_t* user, uint8_t type, const void* payload, uint16_t p
 int user_handle_packet(user_t* user, uint8_t type, const uint8_t* payload, uint16_t payload_length);
 
 // Session
-int user_join_session(user_t* user, uint8_t nb_line, uint8_t nb_card_line, uint8_t nb_card_player);
+int user_join_session(user_t* user, uint16_t max_card_value, uint8_t nb_line, uint8_t nb_card_line, uint8_t nb_card_player) ;
 int user_quit_session(user_t* user);
 
 // Packets

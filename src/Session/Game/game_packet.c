@@ -16,6 +16,19 @@ int get_real_index_from_visible(const int* cards, const int len, const int visib
     return -1; // no such card
 }
 
+int start_move(const session_t* session) {
+    if (session->game->game_state != WAITING && session->game->game_state != WAITING_EXTRA) return 0;
+    if (session->game->card_ready_to_place_count >= session->number_players && session->game->card_ready_to_place_count > 0) {
+        session->game->game_state = PLAYING;
+        for (int i = 0; i < session->capacity; ++i) {
+            if (session->players[i].player_id != 0) continue;
+            session->game->card_ready_to_place[i] = -1;
+        }
+        return place_card(session->game, session->players, session->capacity);
+    }
+    return 0;
+}
+
 int game_handle_info_return(session_t* session, const session_message_t* msg) {
     if (session->game->game_state != WAITING) {printf("Phase id not Waiting it is %d\n", session->game->game_state); return -1;}
     if (msg->data.user.payload_length < sizeof(pkt_session_info_return_payload_t)) {
@@ -37,14 +50,6 @@ int game_handle_info_return(session_t* session, const session_message_t* msg) {
     session->game->deck[card_id].client_id = msg->data.user.client_id;
     session->game->card_ready_to_place[player_index] = card_id;
     session->game->card_ready_to_place_count += 1;
-    if (session->game->card_ready_to_place_count >= session->number_players) {
-        session->game->game_state = PLAYING;
-        for (int i = 0; i < session->capacity; ++i) {
-            if (session->players[i].player_id != 0) continue;
-            session->game->card_ready_to_place[i] = -1;
-        }
-        return place_card(session->game, session->players, session->capacity);
-    }
     return 0;
 }
 

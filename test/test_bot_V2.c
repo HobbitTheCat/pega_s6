@@ -14,8 +14,8 @@
 #include "../include/Protocol/proto_io.h"
 #include "../include/User/user.h"
 
-#define MAX_SQUADS 400
-#define BOTS_PER_SQUAD 5
+#define MAX_SQUADS 30
+#define BOTS_PER_SQUAD 4
 #define TOTAL_BOTS (MAX_SQUADS * BOTS_PER_SQUAD)
 #define MAX_EVENTS 128
 #define RATE_LIMIT_MS 500

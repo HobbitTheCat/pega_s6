@@ -119,9 +119,10 @@ typedef struct {
 #pragma pack(push, 1)
 typedef struct {
     uint32_t session_id;
-    uint8_t nbrLign;
-    uint8_t nbrCardsLign;
-    uint8_t nbrCardsPlayer;
+    uint16_t max_card_value;
+    uint16_t nbrLign;
+    uint16_t nbrCardsLign;
+    uint16_t nbrCardsPlayer;
 } pkt_session_state_payload_t;
 #pragma pack(pop)
 

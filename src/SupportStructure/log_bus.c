@@ -1,17 +1,24 @@
 #include "SupportStructure/log_bus.h"
 
-int log_bus_init(log_bus_t* bus) {
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+
+
+log_bus_t* log_bus_init() {
+    log_bus_t* bus = malloc(sizeof(log_bus_t));
     const int ret = pthread_mutex_init(&bus->mutex, NULL);
-    if (ret != 0) {return ret;}
+    if (ret != 0) {return NULL;}
 
     bus->write_position = 0;
     bus->read_position = 0;
     memset(bus->entries, 0, sizeof(bus->entries));
-    return 0;
+    return bus;
 }
 
 void log_bus_destroy(log_bus_t* bus) {
     pthread_mutex_destroy(&bus->mutex);
+    free(bus);
 }
 
 int log_bus_push(log_bus_t* bus, const log_entry_t* entry) {
@@ -27,6 +34,17 @@ int log_bus_push(log_bus_t* bus, const log_entry_t* entry) {
     bus->write_position++;
     pthread_mutex_unlock(&bus->mutex);
     return 0;
+}
+
+int log_bus_push_message(log_bus_t* bus, const uint32_t session_id, const log_level_t level, const char* message) {
+    log_entry_t m;
+
+    m.timestamp = (uint64_t) time(NULL);
+    m.session_id = session_id;
+    m.level = level;
+    snprintf(m.message, sizeof(m.message), message);
+
+    return log_bus_push(bus, &m);
 }
 
 int log_bus_pop(log_bus_t* bus, log_entry_t* entry) {

@@ -19,7 +19,7 @@ int main() {
     server_t* server = malloc(sizeof(*server));
     if (!server) return -1;
 
-    if (init_server(server, 17001, "log.test") == -1) {free(server); perror("init server"); return -1;}
+    if (init_server(server, 17001, "test.log") == -1) {free(server); perror("init server"); return -1;}
 
     pthread_t server_thread;
     pthread_create(&server_thread, NULL, server_main, server);

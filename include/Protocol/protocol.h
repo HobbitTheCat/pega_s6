@@ -28,7 +28,7 @@ typedef enum {
     PKT_SESSION_SET_GAME_RULES = 14,
     PKT_SESSION_STATE = 15,        // <-
 
-    PKT_READY = 16,             // ->
+    PKT_ADD_BOT = 16,             // ->
     PKT_START_SESSION = 17,        // ->
     PKT_SESSION_INFO = 19,
     PKT_SESSION_INFO_RETURN = 20,
@@ -57,6 +57,8 @@ int protocol_header_decode(header_t* header_network, header_t* header_host);
 int protocol_header_validate(const header_t* header);
 int try_peek_header(const uint8_t* buffer, uint16_t buffer_length, header_t* header_out);
 
+
+// PKT_ERROR
 #pragma pack(push, 1)
 typedef struct {
     uint8_t  error_code;
@@ -166,6 +168,21 @@ typedef struct {
 typedef struct {
     int16_t row_index;
 } pkt_response_extra_payload_t;
+#pragma pack(pop)
+
+// PKT_PHASE_RESULT
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t player_count;
+} pkt_phase_result_payload_t;
+#pragma pack(pop)
+
+// PKT_ADD_BOT
+#pragma pack(push, 1)
+typedef struct {
+    uint8_t number_of_bot_to_add;
+    uint8_t bot_difficulty;
+} pkt_bot_add_payload_t;
 #pragma pack(pop)
 
 #endif //PROTOCOL_H

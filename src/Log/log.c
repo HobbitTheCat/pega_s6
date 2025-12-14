@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 int init_log_thread(log_thread* log_thread, char* path) {
+    remove(path);
     log_thread->log_bus = log_bus_init();
     if (log_thread->log_bus == NULL) {return -1;}
     log_thread->path = path;

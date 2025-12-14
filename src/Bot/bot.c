@@ -67,10 +67,7 @@ int bot_handle_read(bot_t* bot) {
 
             const int r = rx_try_extract_frame(rx, &header, &payload, &payload_len);
             if (r == 0) break;
-            if (r == -1) {
-                fprintf(stderr, "Client: bad packet from server\n");
-                return -1;
-            }
+            if (r == -1) {fprintf(stderr, "Client: bad packet from server\n"); return -1;}
             bot_handle_packet(bot, header.type, payload, payload_len);
         }
 

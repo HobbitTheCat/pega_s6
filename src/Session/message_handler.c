@@ -42,14 +42,14 @@ int handle_system_message(session_t* session, session_message_t* msg) {
     switch (msg->data.user.packet_type) {
         case PKT_SESSION_JOIN:
             if (session->number_players == session->capacity) {
-                log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Capacity exceeded");
+                log_bus_push_message(session->log_bus,session->id,LOG_WARN,"Capacity exceeded");
                 session_send_error_packet(session, client_id, 0x06, "Capacity exceeded"); break;}
             if (session->number_players == 0) {session->id_creator = client_id; session->unregister_send = 0;}
             if (get_index_by_id(session, client_id) != -1) {
-                log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"User already registered");
+                log_bus_push_message(session->log_bus,session->id,LOG_WARN,"User already registered");
                 session_send_error_packet(session, client_id, 0x02, "User already registered"); break;}
             if (session->game->game_state != INACTIVE) {
-                log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Game in progress please wait");
+                log_bus_push_message(session->log_bus,session->id,LOG_WARN,"Game in progress please wait");
                 session_send_error_packet(session, client_id, 0x08, "Game in progress please wait"); break;}
             add_player(session, client_id);
             session_send_state(session, client_id);
@@ -58,13 +58,17 @@ int handle_system_message(session_t* session, session_message_t* msg) {
         case PKT_SESSION_SET_GAME_RULES:
             session_handle_set_rules(session, msg);
             break;
+        case PKT_ADD_BOT:
+            log_bus_push_message(session->log_bus, session->id, LOG_DEBUG, "Got bot_add packet");
+            session_handle_add_bot(session, msg);
+            break;
         case PKT_SESSION_LEAVE: {
             const int rc = remove_player(session, client_id);
             if (rc == 0) {
                 session_send_simple_packet(session, client_id, PKT_SESSION_END);
                 send_system_message_to_server(session, client_id, USER_DISCONNECTED);
             } else {
-                log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"User not in session");
+                log_bus_push_message(session->log_bus,session->id,LOG_WARN,"User not in session");
                 session_send_error_packet(session, client_id, 0x03, "User not in session");
             }
             const int result = start_move(session);
@@ -73,7 +77,7 @@ int handle_system_message(session_t* session, session_message_t* msg) {
         }
         case PKT_SESSION_CLOSE:
             if (client_id != session->id_creator) {
-                log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Unauthorized access");
+                log_bus_push_message(session->log_bus,session->id,LOG_WARN,"Unauthorized access");
                 session_send_error_packet(session, client_id, 0x01, "Unauthorized access"); break;}
             for (int i = 0; (size_t)i < session->capacity; i++) {
                 const player_t* player = &session->players[i];
@@ -105,7 +109,7 @@ int handle_result_of_play(session_t* session, const int result) {
             const player_t* player = &session->players[i];
             if (player->player_id == 0) continue;
             log_bus_push_param(session->log_bus,session->id,LOG_DEBUG,"(%d: %d)",player->player_id, player->nb_head);
-            session_send_simple_packet(session, player->player_id, PKT_PHASE_RESULT);
+            session_send_phase_result(session, player->player_id);
         }
         push_modification_log(session,PHASE_RESULT);
     } else if (result != 0)
@@ -117,7 +121,7 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
     switch (msg->data.user.packet_type) {
         case PKT_START_SESSION:
             if (msg->data.user.client_id != session->id_creator) {
-                log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Unauthorized access");
+                log_bus_push_message(session->log_bus,session->id,LOG_WARN,"Unauthorized access");
                 session_send_error_packet(session, msg->data.user.client_id, 0x01, "Unauthorized access");
                 break;
             }

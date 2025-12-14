@@ -78,6 +78,7 @@ int user_send_create_session(user_t* user, const uint8_t number_players, const u
     packet->nb_players = number_players;
 
     const int result = user_send_packet(user, PKT_SESSION_CREATE, payload, payload_length);
+
     free(payload);
     return result;
 }
@@ -112,6 +113,23 @@ int user_send_set_session_rules(user_t* user, const uint8_t is_visible, const ui
     free(payload);
     return result;
 }
+
+int user_send_add_bot(user_t* user, const uint8_t number_of_bot_to_add, const uint8_t bot_difficulty) {
+    const size_t payload_length = sizeof(pkt_bot_add_payload_t);
+    if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) return -1;
+
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) return -1;
+
+    pkt_bot_add_payload_t* pkt = (pkt_bot_add_payload_t*)payload;
+    pkt->number_of_bot_to_add = number_of_bot_to_add;
+    pkt->bot_difficulty = bot_difficulty;
+
+    const int result = user_send_packet(user, PKT_ADD_BOT, payload, payload_length);
+    free(payload);
+    return result;
+}
+
 
 int user_send_info_return(user_t* user, const uint8_t card_choice) {
     const size_t payload_length = sizeof(pkt_session_info_return_payload_t);
@@ -195,6 +213,7 @@ int client_handle_sync_state(user_t* user, const uint8_t* payload, const uint16_
     }
     memcpy(user->reconnection_token, token_ptr, token_length);
     user->reconnection_token[token_length] = '\0';
+
     return 0;
 }
 
@@ -265,11 +284,102 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
     pkt_card_t* board_cards = ( pkt_card_t*)(scores + player_count);
     pkt_card_t* hand_cards  = board_cards + board_length;
 
-    display_scores(scores,player_count);
-    display_board(board_cards,user);
-    display_hand(hand_cards,user,hand_count,1);
-    display_hand(hand_cards,user,hand_count,0);
 
-    printf("\n");
+    if (user->debug_mode == 0) {
+        display_scores(scores,player_count);
+        display_board(board_cards,user);
+        display_hand(hand_cards,user,hand_count,0);
+    } else {
+        printf("===== BOARD =====\n");
+        for (uint16_t r = 0; r < user->nb_line; ++r) {
+            for (uint16_t c = 0; c < user->nb_card_line; ++c) {
+                const pkt_card_t* card = &board_cards[r * user->nb_card_line + c];
+
+                if (card->num == 0) {
+                    printf("[   ] ");
+                } else {
+                    printf("[%3d] ", (int)card->num);
+                }
+            }
+            printf("\n");
+        }
+
+        printf("\n===== YOUR HAND =====\n");
+        int any_hand = 0;
+        for (uint16_t i = 0; i < hand_count; ++i) {
+            const pkt_card_t* card = &hand_cards[i];
+            // if (card->num == 0) continue;
+            printf("[%3d] ", (int)card->num);
+            any_hand = 1;
+        }
+        if (!any_hand) {
+            printf("(no cards)\n");
+        } else {
+            printf("\n");
+        }
+        printf("\n");
+    }
+
+    return 0;
+}
+
+int client_handle_phase_result(const user_t* user, const uint8_t* payload, const uint16_t payload_length) {
+    (void)user;
+
+    if (payload_length < sizeof(pkt_phase_result_payload_t)) {
+        fprintf(stderr, "Client: bad PHASE_RESULT length\n");
+        return -1;
+    }
+
+    const pkt_phase_result_payload_t* hdr = (const pkt_phase_result_payload_t*)payload;
+    const uint16_t player_count = hdr->player_count;
+
+    const size_t expected =
+        sizeof(pkt_phase_result_payload_t) +
+        (size_t)player_count * sizeof(pkt_player_score_t);
+
+    if (payload_length < expected) {
+        fprintf(stderr, "Client: truncated PHASE_RESULT\n");
+        return -1;
+    }
+
+    pkt_player_score_t* scores = (pkt_player_score_t*)(hdr + 1);
+    display_phase_result(scores,player_count);
+    return 0;
+}
+
+int client_handle_error_packet(const uint8_t* payload, const uint16_t payload_length) {
+    if (payload_length < sizeof(pkt_error_payload_t)) {
+        fprintf(stderr, "Client: bad ERROR payload length\n");
+        return -1;
+    }
+
+    const pkt_error_payload_t* pkt =
+        (const pkt_error_payload_t*)payload;
+
+    const uint16_t msg_len = pkt->message_length;
+    const size_t expected_len =
+        sizeof(pkt_error_payload_t) + (size_t)msg_len;
+
+    if (payload_length < expected_len) {
+        fprintf(stderr, "Client: truncated ERROR message\n");
+        return -1;
+    }
+
+    const char* msg = "";
+    char* tmp = NULL;
+
+    if (msg_len > 0) {
+        tmp = malloc((size_t)msg_len + 1);
+        if (!tmp) return -1;
+
+        memcpy(tmp, (const uint8_t*)(pkt + 1), msg_len);
+        tmp[msg_len] = '\0';
+        msg = tmp;
+    }
+
+    fprintf(stderr, "Error (%u): %s\n", pkt->error_code, msg);
+
+    free(tmp);
     return 0;
 }

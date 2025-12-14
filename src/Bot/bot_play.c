@@ -56,7 +56,7 @@ int bot_handle_session_info(bot_t* bot, const uint8_t* payload, const uint16_t p
     int best_card_index = 0;
     if (bot->level == 0) best_card_index = bot_choose_card(hand_cards, hand_count, row, player_count);
     if (bot->level == 1) best_card_index = best_card_choice(bot->placed_cards, hand_cards, hand_count, player_count, board_cards, bot->user.nb_line, bot->user.nb_card_line, bot->user.max_card_value);
-    if (bot->level == 2) best_card_index = best_card_choice_deep(bot->placed_cards, hand_cards, hand_count, player_count, board_cards, bot->user.nb_line, bot->user.nb_card_line, bot->user.max_card_value, 3);
+    else best_card_index = best_card_choice_deep(bot->placed_cards, hand_cards, hand_count, player_count, board_cards, bot->user.nb_line, bot->user.nb_card_line, bot->user.max_card_value, 3);
     printf("will play: %d\n", best_card_index);
     return bot_send_info_return(bot, best_card_index);
 }

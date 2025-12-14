@@ -10,6 +10,7 @@
 
 #include "Server/server.h"
 #include "Session/session.h"
+#include "User/bot.h"
 
 int send_message_to_session(const server_t* server, const uint32_t session_id, const uint32_t user_id, const uint8_t packet_type, const uint8_t* payload, const uint16_t payload_length) {
     const server_session_t* session_info = fd_map_get(server->registered_sessions, (int)session_id);
@@ -50,14 +51,14 @@ uint32_t get_new_session_id(server_t* server) {
 int create_new_session(server_t* server, const uint8_t number_of_players, const uint8_t is_visible) {
     const uint32_t session_id = get_new_session_id(server);
     server_session_t* session_info = malloc(sizeof(server_session_t));
-    if (!session_info) {printf("!session_info\n"); return -1;}
+    if (!session_info) {log_bus_push_message(server->log_bus, 0, LOG_ERROR, "session info not init"); return -1;}
     session_t* new_session = (session_t*)malloc(sizeof(session_t));
-    if (!new_session) {free(session_info); printf("!new_session\n"); return -1;}
-    if (init_session(new_session, server->log_bus, session_id, number_of_players, is_visible) == -1) {free(new_session); free(session_info); printf("!init_session\n"); return -1;}
+    if (!new_session) {free(session_info); log_bus_push_message(server->log_bus, 0, LOG_ERROR, "session_t not init"); return -1;}
+    if (init_session(new_session, server->log_bus, session_id, number_of_players, is_visible) == -1) {free(new_session); free(session_info); log_bus_push_message(server->log_bus, 0, LOG_ERROR, "session not init"); return -1;}
     response_t* response = create_response(P_BUS, new_session->bus->write.event_fd, &new_session->bus->write.queue);
     if (!response) {free(session_info); cleanup_session(new_session); free(new_session); printf("!response\n"); return -1;}
-    if (add_epoll_event(server->epoll_fd, new_session->bus->write.event_fd, EPOLLIN, response) == -1) {free(response); free(session_info); cleanup_session(new_session); free(new_session); printf("!epoll_event\n"); return -1;}
-    if (fd_map_set(server->response, new_session->bus->write.event_fd, response) == -1) {del_epoll_event(server->epoll_fd, new_session->bus->write.event_fd); free(response); free(session_info); cleanup_session(new_session); free(new_session); printf("!fd_map_set\n"); return -1;}
+    if (add_epoll_event(server->epoll_fd, new_session->bus->write.event_fd, EPOLLIN, response) == -1) {free(response); free(session_info); cleanup_session(new_session); free(new_session); log_bus_push_message(server->log_bus, 0, LOG_ERROR, "epoll_add"); return -1;}
+    if (fd_map_set(server->response, new_session->bus->write.event_fd, response) == -1) {del_epoll_event(server->epoll_fd, new_session->bus->write.event_fd); free(response); free(session_info); cleanup_session(new_session); free(new_session); log_bus_push_message(server->log_bus, 0, LOG_ERROR, "fd map set not init"); return -1;}
 
     session_info->is_visible = is_visible;
     session_info->capacity = number_of_players;
@@ -104,6 +105,22 @@ int get_available_sessions(const server_t* server, uint32_t* session_list) {
     return list_index;
 }
 
+int session_add_bot(const uint32_t session_id, const uint8_t difficulty) {
+    const pid_t pid = fork();
+    if (pid < 0) return -1;
+
+    if (pid == 0) {
+        bot_t* bot = malloc(sizeof(bot_t));
+        if (!bot) _exit(2);
+
+        bot_init(bot);
+        bot_start(bot, "127.0.0.1", 17001, session_id, difficulty);
+        free(bot);
+        _exit(0);
+    }
+    return 0;
+}
+
 void handle_bus_message(server_t* server, const response_t* response) {
     uint64_t count = 0;
     for (;;) {
@@ -119,18 +136,18 @@ void handle_bus_message(server_t* server, const response_t* response) {
         const int received = buffer_pop(response->ptr, &message);
         if (received == BUFFER_EEMPTY) break;
         if (received == BUFFER_SUCCESS && message) {
-            // printf("Received return message type\n");
-            // print_session_message(message);
             if (message->type == USER_MESSAGE) {
                 const server_player_t* player = fd_map_get(server->registered_players, (int)message->data.user.client_id);
                 if (player && player->conn) send_packet(server, player->conn, message->data.user.packet_type, message->data.user.buf, message->data.user.payload_length);
             } else {
                 const system_message_type_t msg_type = message->data.system.type;
                 if (msg_type == SESSION_UNREGISTER) {
-                    printf("Got unreg for %d\n", message->data.system.session_id);
+                    log_bus_push_param(server->log_bus, 0, LOG_INFO, "Session unregistered %d", message->data.system.session_id);
                     unregister_session(server,  message->data.system.session_id);
-                }
-                else {
+                } else if (msg_type == ADD_BOT) {
+                    log_bus_push_message(server->log_bus, 0, LOG_DEBUG, "Creation of new bot");
+                    session_add_bot(message->data.system.session_id, message->data.system.bot_difficulty);
+                } else {
                     server_player_t* player = fd_map_get(server->registered_players, (int)message->data.system.user_id);
                     if (!player) break;
                     server_session_t* session_info = fd_map_get(server->registered_sessions, (int)message->data.system.session_id);
@@ -147,8 +164,7 @@ void handle_bus_message(server_t* server, const response_t* response) {
                         session_info->is_visible = message->data.system.is_visible;
                         session_info->capacity = message->data.system.capacity;
                     } else {
-                        printf("Unknown message type %d\n", message->data.system.type);
-                        print_session_message(message);
+                        log_bus_push_param(server->log_bus, 0, LOG_WARN, "received bad packet %d", message->data.system.type);
                     }
                 }
             }

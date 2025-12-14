@@ -92,6 +92,13 @@ int del_epoll_event(const int epoll_fd, const int fd) {
     return result;
 }
 
+int cleanup_log(server_t* server) {
+    server->server_logger.running = 0;
+    sleep(3);
+    cleanup_log_thread(&server->server_logger);
+    return 0;
+}
+
 // --------- server ---------
 int init_server(server_t* server, const int port, char* log_filename) {
     pthread_t thread_for_log;
@@ -100,10 +107,10 @@ int init_server(server_t* server, const int port, char* log_filename) {
     server->log_bus = server->server_logger.log_bus;
 
     server->listen_fd = create_listen_socket(port);
-    if (server->listen_fd == -1) return -1;
+    if (server->listen_fd == -1) { cleanup_log(server); return -1;}
 
     server->epoll_fd = create_epoll();
-    if (server->epoll_fd == -1) {close(server->listen_fd); return -1;}
+    if (server->epoll_fd == -1) {close(server->listen_fd);  cleanup_log(server); return -1;}
 
     server->response = fd_map_create(256);
     server->registered_sessions = fd_map_create(32);
@@ -154,9 +161,7 @@ void cleanup_server(server_t* server) {
     close(server->listen_fd);
     close(server->epoll_fd);
 
-    server->server_logger.running = 0;
-    sleep(3);
-    cleanup_log_thread(&server->server_logger);
+    cleanup_log(server);
 }
 
 void cleanup_connection(server_t* server, server_conn_t* conn) {
@@ -177,7 +182,7 @@ void cleanup_connection(server_t* server, server_conn_t* conn) {
 void* server_main(void* arg) {
     server_t* server = arg;
     struct epoll_event events[MAX_EVENTS];
-    // TODO если во время внутреннего цикла первым сообщением освобождается клиент а вторым приходит ему лично то происходит NULL POINTER EXCEPTION решение - видимо стэк
+
     while (server->running) {
         int const n = epoll_wait(server->epoll_fd, events, MAX_EVENTS, -1);
         if (n == -1){ if (errno == EINTR) continue; log_bus_push_message(server->log_bus, 0, LOG_ERROR, "Server epoll wait"); cleanup_server(server); break;}
@@ -189,7 +194,7 @@ void* server_main(void* arg) {
 
             if (event & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) {
                 if (response->type == P_CLIENT) {
-                    log_bus_push_message(server->log_bus, 0, LOG_INFO, "CLient disconnected");
+                    log_bus_push_message(server->log_bus, 0, LOG_INFO, "client disconnected");
                     cleanup_connection(server, response->ptr);
                 }
                 continue;
@@ -217,7 +222,7 @@ void handle_accept(const server_t* server) {
         const int client_fd = accept(server->listen_fd, (struct sockaddr*) &client_address, &client_address_length);
         if (client_fd == -1) {
             if (errno == EWOULDBLOCK || errno == EAGAIN) break;
-            perror("server: accept"); break;
+            log_bus_push_message(server->log_bus, 0, LOG_WARN, "accept"); break;
         }
         if (make_nonblocking(client_fd) == -1) continue;
 
@@ -250,7 +255,8 @@ void handle_read(server_t* server, server_conn_t* conn) {
             if (n == 0) {cleanup_connection(server, conn); return;}
             if (errno == EINTR) continue;
             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-            perror("server: recv"); cleanup_connection(server, conn); return;
+            log_bus_push_message(server->log_bus, 0, LOG_WARN, "receive");
+            cleanup_connection(server, conn); return;
         }
 
         for (;;) {
@@ -261,7 +267,7 @@ void handle_read(server_t* server, server_conn_t* conn) {
             const int r = rx_try_extract_frame(rx, &header, &payload, &payload_len);
             if (r == 0) break;
             if (r == -1) {
-                printf("server: received bad packet\n");
+                log_bus_push_message(server->log_bus, 0, LOG_WARN, "received bad packet");
                 cleanup_connection(server, conn);
                 return;
             }
@@ -269,7 +275,7 @@ void handle_read(server_t* server, server_conn_t* conn) {
         }
         if (rx->have < sizeof(rx->buf)) break;
         if (rx->have == sizeof(rx->buf)) {
-            printf("server: rx buffer overflow / protocol desync\n");
+            log_bus_push_message(server->log_bus, 0, LOG_WARN, "rx buffer overflow / protocol desync");
             cleanup_connection(server, conn);
         }
         break;
@@ -288,6 +294,7 @@ int handle_write(server_t* server, server_conn_t* conn) {
             }
             if (n < 0 && errno == EINTR) continue;
             if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return 0;
+            log_bus_push_message(server->log_bus, 0, LOG_WARN, "error while sending");
             cleanup_connection(server, conn);
             return -1;
         }

@@ -118,6 +118,8 @@ int handle_result_of_play(session_t* session, const int result) {
 }
 
 int handle_game_message(session_t* session, const session_message_t* msg) {
+    int result;
+
     switch (msg->data.user.packet_type) {
         case PKT_START_SESSION:
             if (msg->data.user.client_id != session->id_creator) {
@@ -135,12 +137,12 @@ int handle_game_message(session_t* session, const session_message_t* msg) {
             break;
         case PKT_SESSION_INFO_RETURN:
             game_handle_info_return(session, msg);
-            const int result = start_move(session);
+            result = start_move(session);
             handle_result_of_play(session, result);
             break;
         case PKT_RESPONSE_EXTRA:
-            const int extra_result = game_handle_response_extra(session, msg);
-            handle_result_of_play(session, extra_result);
+            result = game_handle_response_extra(session, msg);
+            handle_result_of_play(session, result);
             break;
         default:
             log_bus_push_param(session->log_bus,session->id,LOG_DEBUG,"Received packet: %d",msg->data.user.packet_type);

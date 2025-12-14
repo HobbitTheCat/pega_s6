@@ -35,6 +35,7 @@ void display_hand(pkt_card_t* board_cards,user_t* user,const uint32_t hand_count
     void_display_card(hand_count,board_cards,0,user);
     mid_down_display_card(hand_count,board_cards,0,user);
     down_display_card(hand_count,board_cards,0,user);
+    printf("%s", reset);
     printf("\n");
     couleur = "\033[36m";
     printf("%s", couleur);
@@ -264,8 +265,7 @@ void down_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indiceLi
     printf("%s", reset);
 
 }
-
-void display_extr(pkt_card_t* board_cards,uint8_t cardcount,user_t* user) {
+void display_extr() {
     char *couleur = "\033[32m";
     char *reset = "\033[0m";
 

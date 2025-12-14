@@ -94,7 +94,7 @@ int unregister_session(const server_t* server, const uint32_t session_id) {
 
 int get_available_sessions(const server_t* server, uint32_t* session_list) {
     int list_index = 0;
-    for (int i = 1; i < server->next_session_id; i++) {
+    for (int i = 1; i < (int)server->next_session_id; i++) {
         server_session_t* session_info = fd_map_get(server->registered_sessions, i);
         if (!session_info) continue;
         if (session_info->is_visible == 1 && session_info->capacity - session_info->number_players > 0) {

@@ -132,7 +132,7 @@ void cleanup_server(server_t* server) {
     if (!server) return;
     server->running = 0;
 
-    for (int session_id = 1; session_id < server->next_session_id; session_id++) {
+    for (int session_id = 1; session_id < (int)server->next_session_id; session_id++) {
         server_session_t* session_info = fd_map_get(server->registered_sessions, session_id);
         if (!session_info) continue;
         unregister_session(server, session_id);
@@ -150,7 +150,7 @@ void cleanup_server(server_t* server) {
     }
     fd_map_destroy(server->response);
 
-    for (int player_id = 1; player_id < server->next_player_id; player_id++) {
+    for (int player_id = 1; player_id < (int)server->next_player_id; player_id++) {
         server_player_t* player = fd_map_get(server->registered_players, (int)player_id);
         if (!player) continue;
         free(player->reconnection_token);

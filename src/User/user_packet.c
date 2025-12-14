@@ -186,10 +186,7 @@ int client_handle_request_extra(user_t* user,
         fprintf(stderr, "Client: truncated REQUEST_EXTRA cards\n");
         return -1;
     }
-
-    pkt_card_t* cards = (pkt_card_t*)(hdr + 1);
-
-    display_extr(cards,card_count,user);
+    display_extr();
 
     return 0;
 }

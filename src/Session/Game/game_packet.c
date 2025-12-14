@@ -19,10 +19,10 @@ int get_real_index_from_visible(const int* cards, const int len, const int visib
 
 int start_move(const session_t* session) {
     if (session->game->game_state != WAITING && session->game->game_state != WAITING_EXTRA) return 0;
-    if (session->game->card_ready_to_place_count >= session->number_players && session->game->card_ready_to_place_count > 0) {
+    if (session->game->card_ready_to_place_count >= (int)session->number_players && session->game->card_ready_to_place_count > 0) {
         session->game->game_state = PLAYING;
         push_modification_log(session,ACTION);
-        for (int i = 0; i < session->capacity; ++i) {
+        for (int i = 0; i < (int)session->capacity; ++i) {
             if (session->players[i].player_id != 0) continue;
             session->game->card_ready_to_place[i] = -1;
         }

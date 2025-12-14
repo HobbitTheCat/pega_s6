@@ -103,7 +103,7 @@ int push_modification_log(const session_t* session, const event_type_s action) {
 
         case ACTION:
             pos = append(msg, pos, "ACTION:");
-            for (int p = 0; p < session->capacity; p++) {
+            for (int p = 0; p < (int)session->capacity; p++) {
                 const player_t* player = &session->players[p];
                 const int idx = session->game->card_ready_to_place[p];
                 if (player->player_id == 0 || idx == -1) continue;
@@ -115,7 +115,7 @@ int push_modification_log(const session_t* session, const event_type_s action) {
 
         case PHASE_RESULT:
             pos = append(msg, pos, "PHASE_RESULT:");
-            for (int p = 0; p < session->capacity; p++) {
+            for (int p = 0; p < (int)session->capacity; p++) {
                 const player_t* player = &session->players[p];
                 if (player->player_id == 0) continue;
 

@@ -18,11 +18,13 @@ int handle_packet_main(server_t* server, server_conn_t* conn, const uint8_t pack
     }
     if (conn->player == NULL) { return send_error_packet(server, conn, 0x03, "User is not registered");}
     const server_player_t* player = conn->player;
+    int result;
+    uint32_t id;
     switch (packet_type) {
         case PKT_GET_SESSION_LIST:
             return send_session_list(server, conn);
         case PKT_UNREGISTER:
-            const int result = send_simple_packet(server, conn, PKT_UNREGISTER_RETURN);
+            result = send_simple_packet(server, conn, PKT_UNREGISTER_RETURN);
             unregister_client(server, player->user_id);
             return result;
         case PKT_SESSION_CREATE:
@@ -32,7 +34,7 @@ int handle_packet_main(server_t* server, server_conn_t* conn, const uint8_t pack
             send_message_to_session(server, session_id, player->user_id, PKT_SESSION_JOIN, payload, payload_length);
             break;
         case PKT_SESSION_JOIN:
-            const uint32_t id = handle_session_join_packet(server, conn, payload, payload_length);
+            id = handle_session_join_packet(server, conn, payload, payload_length);
             if (id == 0) break;
             if (!fd_map_get(server->registered_sessions, (int)id)) { send_error_packet(server, conn, 0x05, "Session not found"); break;}
             send_message_to_session(server, id, player->user_id, PKT_SESSION_JOIN, payload, payload_length);

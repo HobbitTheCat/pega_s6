@@ -34,6 +34,7 @@ typedef struct {
     uint8_t nb_card_player;
     int game_initialized;
 
+    uint8_t debug_mode;
 } user_t;
 
 int user_init(user_t* user);
@@ -65,6 +66,7 @@ int user_send_simple(user_t* user, uint8_t type);
 int user_send_reconnect(user_t* user);
 int user_send_create_session(user_t* user, uint8_t number_players, uint8_t is_visible);
 int user_send_join_session(user_t* user, uint32_t session_id);
+int user_send_add_bot(user_t* user, const uint8_t number_of_bot_to_add, uint8_t bot_difficulty);
 int user_send_info_return(user_t* user, uint8_t card_choice);
 int user_send_response_extra(user_t* user, int16_t row_index);
 int user_send_set_session_rules(user_t* user, uint8_t is_visible, uint8_t nb_lines,
@@ -75,4 +77,5 @@ int client_handle_sync_state(user_t* user, const uint8_t* payload, uint16_t payl
 int client_handle_session_list(const uint8_t* payload, uint16_t payload_length);
 int client_handle_session_state(user_t* user, const uint8_t* payload, uint16_t payload_length);
 int client_handle_session_info(user_t* user, const uint8_t* payload, uint16_t payload_length);
+int client_handle_phase_result(const user_t* user, const uint8_t* payload, uint16_t payload_length);
 #endif //USER_H

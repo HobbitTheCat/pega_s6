@@ -20,7 +20,9 @@ void mid_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indiceLig
 void void_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indiceLigne,user_t* user);
 void mid_down_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indiceLigne,user_t* user);
 void down_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indiceLigne,user_t* user);
-void display_extr();
-
+void display_extr(pkt_card_t* board_cards,uint8_t cardcount,user_t* user);
+void display_start();
+void display_in_session();
+void display_phase_result(pkt_player_score_t* scores,uint16_t player_count);
 
 #endif //DISPLAY_SESSION_H

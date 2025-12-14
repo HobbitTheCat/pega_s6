@@ -42,6 +42,7 @@ int add_epoll_event(int epoll_fd, int fd, uint32_t events, response_t* response)
 int mod_epoll_event(int epoll_fd, int fd, uint32_t events, response_t* response);
 int del_epoll_event(int epoll_fd, int fd);
 
+int cleanup_log(server_t* server);
 int init_server(server_t* server, int port, char* log_filename);
 void cleanup_server(server_t* server);
 void cleanup_connection(server_t* server, server_conn_t* conn);
@@ -68,6 +69,7 @@ int create_new_session(server_t* server, uint8_t number_of_players, uint8_t is_v
 int unregister_session(const server_t* server, uint32_t session_id);
 int get_available_sessions(const server_t* server, uint32_t* session_list);
 uint32_t get_new_session_id(server_t* server);
+int session_add_bot(uint32_t session_id, uint8_t difficulty);
 
 // Client manager
 int generate_reconnection_token(char* buf, size_t len);

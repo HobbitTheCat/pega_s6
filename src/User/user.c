@@ -14,6 +14,7 @@ int user_init(user_t* user) {
     user->sockfd = -1;
     user->client_id = 0;
     user->bot = 0;
+    user->debug_mode = 0;
     user->reconnection_token[0] = '\0';
 
     rx_init(&user->rx);
@@ -137,7 +138,7 @@ void user_run(user_t* user, const char* host, uint16_t port) {
         }
 
         const int rc = user_loop_once(user);
-        printf("Вышел\n");
+        printf("Exit\n");
         user_close_connection(user);
 
         if (!user->is_running)

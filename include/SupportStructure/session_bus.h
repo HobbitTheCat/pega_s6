@@ -6,7 +6,7 @@
 
 #define SP_MAX_FRAME 4096
 
-typedef enum {SESSION_UNREGISTER, SESSION_UNREGISTERED, USER_CONNECTED, USER_DISCONNECTED, USER_UNREGISTER, USER_LEFT, UPDATE_STATE} system_message_type_t;
+typedef enum {SESSION_UNREGISTER, SESSION_UNREGISTERED, USER_CONNECTED, USER_DISCONNECTED, USER_UNREGISTER, USER_LEFT, UPDATE_STATE, ADD_BOT} system_message_type_t;
 // USER_DISCONNECTED from session if user was disconnected
 // USER_UNREGISTER from server if user was unregistered with no return
 // USER_LEFT from server if use was unregistered with a chance to return
@@ -20,6 +20,7 @@ typedef struct {
     uint8_t capacity;
     uint8_t player_count;
     uint8_t is_visible;
+    uint8_t bot_difficulty;
 } system_message_t;
 
 typedef struct {

@@ -38,6 +38,7 @@ int session_send_simple_packet(const session_t* session, const uint32_t user_id,
 
 int session_send_error_packet(const session_t* session, const uint32_t user_id, const uint8_t error_code, const char* error_message) {
     if (!error_message) error_message = "";
+    log_bus_push_message(session->log_bus,session->id,LOG_WARN, error_message);
     const size_t message_length = strlen(error_message);
     const size_t header_part = sizeof(pkt_error_payload_t);
     const size_t payload_length = header_part + message_length;
@@ -103,7 +104,7 @@ int push_modification_log(const session_t* session, const event_type_s action) {
 
         case ACTION:
             pos = append(msg, pos, "ACTION:");
-            for (int p = 0; p < (int)session->capacity; p++) {
+            for (int p = 0; p <(int) session->capacity; p++) {
                 const player_t* player = &session->players[p];
                 const int idx = session->game->card_ready_to_place[p];
                 if (player->player_id == 0 || idx == -1) continue;
@@ -217,6 +218,46 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
     return result;
 }
 
+int session_send_phase_result(const session_t* session, const uint32_t user_id) {
+    uint16_t active_player_count = 0;
+    for (int i = 0; (size_t)i < session->capacity; i++) {
+        if (session->players[i].player_id != 0) active_player_count++;
+    }
+
+    const size_t header_part = sizeof(pkt_phase_result_payload_t);
+    const size_t scores_part = (size_t)active_player_count * sizeof(pkt_player_score_t);
+    const size_t payload_length = header_part + scores_part;
+
+    if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) {
+        log_bus_push_message(session->log_bus, session->id, LOG_DEBUG, "Phase result is too big");
+        return -1;
+    }
+
+    uint8_t* payload = malloc(payload_length);
+    if (!payload) {
+        log_bus_push_message(session->log_bus, session->id, LOG_ERROR, "Allocation Fail");
+        return -1;
+    }
+
+    pkt_phase_result_payload_t* hdr = (pkt_phase_result_payload_t*)payload;
+    hdr->player_count = active_player_count;
+
+    pkt_player_score_t* scores_out = (pkt_player_score_t*)(hdr + 1);
+    int p_idx = 0;
+    for (int i = 0; (size_t)i < session->capacity; i++) {
+        const player_t* p = &session->players[i];
+        if (p->player_id == 0) continue;
+        scores_out[p_idx].player_id = p->player_id;
+        scores_out[p_idx].nb_head   = p->nb_head;
+        p_idx++;
+    }
+
+    const int result = session_send_to_player(session, user_id, PKT_PHASE_RESULT, payload, (uint16_t)payload_length);
+    free(payload);
+    return result;
+}
+
+
 
 int session_handle_set_rules(session_t* session, session_message_t* msg) {
     if (msg->data.user.client_id != session->id_creator) {
@@ -255,6 +296,37 @@ int session_handle_set_rules(session_t* session, session_message_t* msg) {
         const player_t* player = &session->players[i];
         if (player->player_id == 0) continue;
         session_send_state(session, player->player_id);
+    }
+
+    return 0;
+}
+
+int session_handle_add_bot(const session_t* session, const session_message_t* msg) {
+    if (msg->data.user.payload_length < sizeof(pkt_bot_add_payload_t)) {
+        session_send_error_packet(session, msg->data.user.client_id, 0x41, "Bad ADD_BOT payload");
+        return -1;
+    }
+
+    const pkt_bot_add_payload_t* pkt = (const pkt_bot_add_payload_t*)msg->data.user.buf;
+
+    const uint8_t count = pkt->number_of_bot_to_add;
+    const uint8_t difficulty = pkt->bot_difficulty;
+
+    if (count == 0) return 0;
+    if (session->number_players + count > session->capacity) {
+        session_send_error_packet(session, msg->data.user.client_id, 0x06, "Capacity exceeded");
+        return -1;
+    }
+
+    log_bus_push_param(session->log_bus, session->id, LOG_DEBUG, "Add %d bots, diff: %d", count, difficulty);
+
+    for (uint8_t i = 0; i < count; i++) {
+        session_message_t* message = (session_message_t*)malloc(sizeof(session_message_t));
+        message->type = SYSTEM_MESSAGE;
+        message->data.system.type = ADD_BOT;
+        message->data.system.session_id = session->id;
+        message->data.system.bot_difficulty = difficulty;
+        if (session_bus_push(&session->bus->write, message) != 0) {free(message); log_bus_push_message(session->log_bus, session->id, LOG_ERROR, "Unable to send message"); return -1;}
     }
 
     return 0;

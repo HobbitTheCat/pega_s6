@@ -63,8 +63,10 @@ int session_send_simple_packet(const session_t* session, uint32_t user_id, uint8
 int session_send_error_packet(const session_t* session, uint32_t user_id, uint8_t error_code, const char* error_message);
 int session_send_state(const session_t* session, uint32_t user_id);
 int session_send_info(const session_t* session, uint32_t user_id);
+int session_send_phase_result(const session_t* session, uint32_t user_id);
 
 int session_handle_set_rules(session_t* session, session_message_t* msg);
+int session_handle_add_bot(const session_t* session, const session_message_t* msg);
 
 int start_move(const session_t* session);
 int game_handle_info_return(session_t* session, const session_message_t* msg);

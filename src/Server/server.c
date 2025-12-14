@@ -8,13 +8,13 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <string.h>
+#include <pthread.h>
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <sys/epoll.h>
 #include <netinet/tcp.h>
 
-#include "log_bus.h"
 
 int create_listen_socket(const int port) {
     const int fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -93,7 +93,12 @@ int del_epoll_event(const int epoll_fd, const int fd) {
 }
 
 // --------- server ---------
-int init_server(server_t* server, const int port) {
+int init_server(server_t* server, const int port, char* log_filename) {
+    pthread_t thread_for_log;
+    if (init_log_thread(&server->server_logger, log_filename) != 0) {fprintf(stderr, "Error of init"); return -1;}
+    if (pthread_create(&thread_for_log, NULL, log_thread_loop, &server->server_logger) != 0) {fprintf(stderr, "Error of pthread_create"); return -1; }
+    server->log_bus = server->server_logger.log_bus;
+
     server->listen_fd = create_listen_socket(port);
     if (server->listen_fd == -1) return -1;
 
@@ -148,6 +153,10 @@ void cleanup_server(server_t* server) {
     del_epoll_event(server->epoll_fd, server->listen_fd);
     close(server->listen_fd);
     close(server->epoll_fd);
+
+    server->server_logger.running = 0;
+    sleep(3);
+    cleanup_log_thread(&server->server_logger);
 }
 
 void cleanup_connection(server_t* server, server_conn_t* conn) {
@@ -224,8 +233,10 @@ void handle_accept(const server_t* server) {
         }
 
         fd_map_set(server->response, client_fd, response);
-        log_bus_push_message(server->log_bus, 0, LOG_INFO, "server: accepted connection from %s\n");
-        printf("server: accepted connection from %s\n", inet_ntoa(client_address.sin_addr));
+
+        char debug_msg[128];
+        snprintf(debug_msg,sizeof(debug_msg),"server: accepted connection from %s", inet_ntoa(client_address.sin_addr));
+        log_bus_push_message(server->log_bus, 0, LOG_DEBUG, debug_msg);
     }
 }
 

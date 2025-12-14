@@ -3,7 +3,7 @@
 #include "Session/Game/game.h"
 
 int take_line(game_t* game, player_t* player, const uint8_t numeroLigne, const uint8_t indexPlayer){
-    if (game->card_ready_to_place[indexPlayer] == -1) {printf("Interesting\n"); return -1;}
+    if (game->card_ready_to_place[indexPlayer] == -1) {printf("Interesting\n");}
     for (int i = 0; i < game->nbrCardsLign; i++) {
         if (game->board[numeroLigne*game->nbrCardsLign + i] == -1) break;
         player[indexPlayer].nb_head += game->deck[game->board[numeroLigne*game->nbrCardsLign + i]].numberHead;

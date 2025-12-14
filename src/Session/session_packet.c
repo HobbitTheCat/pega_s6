@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
+
+#define LOG_BUF_SIZE 1024
 
 #include "protocol.h"
 #include "Session/session.h"
@@ -9,13 +12,13 @@ int session_send_to_player(const session_t* session, const uint32_t user_id, con
     if (payload_length > SP_MAX_FRAME) return -1;
 
     session_message_t* message = (session_message_t*)malloc(sizeof(session_message_t));
-    if (!message) return -1;
+    if (!message) {log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Allocation Fail"); return -1;}
     message->type = USER_MESSAGE;
     message->data.user.client_id = user_id;
     message->data.user.packet_type = packet_type;
     message->data.user.payload_length = payload_length;
     if (payload_length > 0 && payload) memcpy(message->data.user.buf, payload, payload_length);
-    if (session_bus_push(&session->bus->write, message) != 0) {free(message);return -1;}
+    if (session_bus_push(&session->bus->write, message) != 0) {free(message); log_bus_push_message(session->log_bus,session->id,LOG_WARN,"Error of send to user"); return -1;}
     return 0;
 }
 
@@ -40,7 +43,7 @@ int session_send_error_packet(const session_t* session, const uint32_t user_id, 
     const size_t payload_length = header_part + message_length;
     if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) return -1;
     uint8_t* payload = malloc(payload_length);
-    if (!payload) return -1;
+    if (!payload) {log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Allocation Fail"); return -1;}
 
     pkt_error_payload_t* packet = (pkt_error_payload_t*)payload;
     packet->error_code = error_code;
@@ -55,7 +58,7 @@ int session_send_state(const session_t* session, const uint32_t user_id) {
     const size_t payload_length = sizeof(pkt_session_state_payload_t);
 
     uint8_t* payload = malloc(payload_length);
-    if (!payload) return -1;
+    if (!payload) {log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Allocation Fail"); return -1;}
 
     pkt_session_state_payload_t* packet = (pkt_session_state_payload_t*)payload;
     packet->session_id = session->id;
@@ -69,10 +72,71 @@ int session_send_state(const session_t* session, const uint32_t user_id) {
     return result;
 }
 
+int append(char* buf, const int pos, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    const int written = vsnprintf(buf + pos, LOG_BUF_SIZE - pos, fmt, args);
+    va_end(args);
+
+    if (written < 0 || pos + written >= LOG_BUF_SIZE)
+        return -1;
+
+    return pos + written;
+}
+
+int push_modification_log(const session_t* session, const event_type_s action) {
+    char* msg = malloc(LOG_BUF_SIZE);
+    if (!msg) return -1;
+    int pos = 0;
+
+    switch (action) {
+        case START:
+            pos = append(msg, pos, "START:");
+            for (int row = 0; row < session->game->nbrLign; row++) {
+                const card_t card =
+                    session->game->deck[
+                        session->game->board[row * session->game->nbrCardsLign]
+                    ];
+                pos = append(msg, pos, "%d_%d_%d;", row, card.num, card.numberHead);
+            }
+            break;
+
+        case ACTION:
+            pos = append(msg, pos, "ACTION:");
+            for (int p = 0; p < session->capacity; p++) {
+                const player_t* player = &session->players[p];
+                const int idx = session->game->card_ready_to_place[p];
+                if (player->player_id == 0 || idx == -1) continue;
+
+                const card_t card = session->game->deck[idx];
+                pos = append(msg, pos, "%u_%d_%d;", player->player_id, card.num, card.numberHead);
+            }
+            break;
+
+        case PHASE_RESULT:
+            pos = append(msg, pos, "PHASE_RESULT:");
+            for (int p = 0; p < session->capacity; p++) {
+                const player_t* player = &session->players[p];
+                if (player->player_id == 0) continue;
+
+                pos = append(msg, pos, "%u_%d;", player->player_id, player->nb_head);
+            }
+            break;
+
+        default:
+            free(msg);
+            return -1;
+    }
+
+    const int r = log_bus_push_message(session->log_bus, session->id, LOG_SESSION, msg);
+    free(msg);
+    return r;
+}
+
 int session_send_info(const session_t* session, const uint32_t user_id) {
     const game_t* game = session->game;
     const int player_idx = get_index_by_id(session, user_id);
-    if (player_idx < 0) return -1;
+    if (player_idx < 0) {log_bus_push_message(session->log_bus,session->id,LOG_WARN,"User id == -1"); return -1;}
     const player_t* player = &session->players[player_idx];
 
     const uint16_t board_len = (uint16_t)(game->nbrLign * game->nbrCardsLign);
@@ -93,15 +157,19 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
 
     const size_t payload_length = header_part + score_part + board_part + hand_part;
     if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) {
-        printf("Session info is too big\n");
+        log_bus_push_message(session->log_bus,session->id,LOG_DEBUG,"Session info is too big");
         return -1;
     }
 
     uint8_t* payload = malloc(payload_length);
-    if (!payload) return -1;
+    if (!payload) {
+        log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Allocation Fail");
+        return -1;
+    }
+
 
     pkt_session_info_payload_t* header = (pkt_session_info_payload_t*)payload;
-    header->hand_count   = hand_count;
+    header->hand_count = hand_count;
     header->player_count = active_player_count;
 
     pkt_player_score_t* scores_out = (pkt_player_score_t*)(header + 1);
@@ -109,9 +177,8 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
     for (int i = 0; (size_t)i < session->capacity; i++) {
         const player_t* p = &session->players[i];
         if (p->player_id == 0) continue;
-
         scores_out[p_idx].player_id = p->player_id;
-        scores_out[p_idx].nb_head   = p->nb_head;
+        scores_out[p_idx].nb_head = p->nb_head;
         p_idx++;
     }
 
@@ -121,13 +188,13 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
         const int board_index = game->board[i];
         if (board_index != -1) {
             const card_t* card = &game->deck[board_index];
-            out[i].num        = card->num;
+            out[i].num = card->num;
             out[i].numberHead = card->numberHead;
-            out[i].client_id  = card->client_id;
+            out[i].client_id = card->client_id;
         } else {
-            out[i].num        = 0;
+            out[i].num = 0;
             out[i].numberHead = 0;
-            out[i].client_id  = 0;
+            out[i].client_id = 0;
         }
     }
 
@@ -139,15 +206,13 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
         const card_t* card = &game->deck[card_index];
 
         pkt_card_t* dst = &out[board_len + idx];
-        dst->num        = card->num;
+        dst->num = card->num;
         dst->numberHead = card->numberHead;
-        dst->client_id  = card->client_id;
+        dst->client_id = card->client_id;
         idx++;
     }
 
-    const int result = session_send_to_player(session, user_id,
-                                              PKT_SESSION_INFO,
-                                              payload, payload_length);
+    const int result = session_send_to_player(session, user_id, PKT_SESSION_INFO, payload, payload_length);
     free(payload);
     return result;
 }
@@ -155,14 +220,17 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
 
 int session_handle_set_rules(session_t* session, session_message_t* msg) {
     if (msg->data.user.client_id != session->id_creator) {
+        log_bus_push_message(session->log_bus, session->id, LOG_WARN, "Unauthorized access");
         session_send_error_packet(session, msg->data.user.client_id, 0x01, "Unauthorized access");
         return -1;
     }
     if (msg->data.user.payload_length < sizeof(pkt_session_set_game_rules_payload_t)) {
+        log_bus_push_message(session->log_bus, session->id, LOG_WARN, "Bad session set rules payload");
         session_send_error_packet(session, msg->data.user.client_id, 0x34, "Bad session set rules payload");
         return -1;
     }
     if (session->game->game_state != INACTIVE) {
+        log_bus_push_message(session->log_bus, session->id, LOG_WARN, "Session already started");
         session_send_error_packet(session, msg->data.user.client_id, 0x34, "Session already started");
         return -1;
     }
@@ -174,6 +242,7 @@ int session_handle_set_rules(session_t* session, session_message_t* msg) {
     uint8_t max_heads = pkt->max_heads;
 
     if (nb_cards < nb_cards_player * session->capacity) {
+        log_bus_push_message(session->log_bus, session->id, LOG_WARN, "Not enough cards");
         session_send_error_packet(session, msg->data.user.client_id, 0x34, "Not enough cards");
         return -1;
     }

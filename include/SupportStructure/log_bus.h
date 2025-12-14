@@ -30,6 +30,7 @@ int log_bus_push(log_bus_t* bus, const log_entry_t* entry);
 int log_bus_pop(log_bus_t* bus, log_entry_t* entry);
 
 int log_bus_push_message(log_bus_t* bus, uint32_t session_id, log_level_t level, const char* message);
+int log_bus_push_param(log_bus_t* bus, uint32_t session_id, log_level_t level, const char* message, ...);
 
 uint64_t log_bus_mutex_available(log_bus_t* bus);
 

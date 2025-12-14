@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#include "SupportStructure/log_bus.h"
 #include "Session/player.h"
 #include "Game/card.h"
 
@@ -31,7 +32,7 @@ typedef struct {
 int init_game(game_t* game, uint8_t nbrLign, uint8_t nbrCardsLign, uint8_t nbrCardsPlayer, uint8_t nbrCards, uint8_t nbrHead, uint8_t nb_player);
 void cleanup_game(const game_t* game);
 
-int distrib_cards(game_t* game, const player_t* player,int nb_player);
+int distrib_cards(game_t* game, const player_t* player, int nb_player, log_bus_t* bus, int session_id);
 int melange_ids(int* ids, int length);
 int melange_head(const int* ids, const game_t* game);
 

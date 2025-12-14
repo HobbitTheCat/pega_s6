@@ -1,5 +1,7 @@
 #include "SupportStructure/log_bus.h"
 
+#include <stdio.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -37,14 +39,25 @@ int log_bus_push(log_bus_t* bus, const log_entry_t* entry) {
 }
 
 int log_bus_push_message(log_bus_t* bus, const uint32_t session_id, const log_level_t level, const char* message) {
+    if (!bus) return -1;
     log_entry_t m;
 
     m.timestamp = (uint64_t) time(NULL);
     m.session_id = session_id;
     m.level = level;
-    snprintf(m.message, sizeof(m.message), message);
+    snprintf(m.message, sizeof(m.message), "%s", message);
 
     return log_bus_push(bus, &m);
+}
+
+int log_bus_push_param(log_bus_t* bus, const uint32_t session_id, const log_level_t level, const char* message, ...) {
+    if (!bus) return -1;
+    char buffer[256];
+    va_list args;
+    va_start(args, message);
+    vsnprintf(buffer, sizeof(buffer), message, args);
+    va_end(args);
+    return log_bus_push_message(bus, session_id, level, buffer);
 }
 
 int log_bus_pop(log_bus_t* bus, log_entry_t* entry) {
@@ -69,10 +82,11 @@ uint64_t log_bus_mutex_available(log_bus_t* bus) {
 
 const char* log_level_name(const log_level_t level) {
     switch (level) {
-        case LOG_INFO:  return "INFO";
-        case LOG_WARN:  return "WARN";
+        case LOG_INFO: return "INFO";
+        case LOG_WARN: return "WARN";
         case LOG_ERROR: return "ERROR";
         case LOG_DEBUG: return "DEBUG";
-        default:        return "UNKNOWN";
+        case LOG_SESSION: return "SESSION";
+        default: return "UNKNOWN";
     }
 }

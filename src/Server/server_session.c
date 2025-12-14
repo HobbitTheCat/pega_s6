@@ -53,7 +53,7 @@ int create_new_session(server_t* server, const uint8_t number_of_players, const 
     if (!session_info) {printf("!session_info\n"); return -1;}
     session_t* new_session = (session_t*)malloc(sizeof(session_t));
     if (!new_session) {free(session_info); printf("!new_session\n"); return -1;}
-    if (init_session(new_session, session_id, number_of_players, is_visible) == -1) {free(new_session); free(session_info); printf("!init_session\n"); return -1;}
+    if (init_session(new_session, server->log_bus, session_id, number_of_players, is_visible) == -1) {free(new_session); free(session_info); printf("!init_session\n"); return -1;}
     response_t* response = create_response(P_BUS, new_session->bus->write.event_fd, &new_session->bus->write.queue);
     if (!response) {free(session_info); cleanup_session(new_session); free(new_session); printf("!response\n"); return -1;}
     if (add_epoll_event(server->epoll_fd, new_session->bus->write.event_fd, EPOLLIN, response) == -1) {free(response); free(session_info); cleanup_session(new_session); free(new_session); printf("!epoll_event\n"); return -1;}

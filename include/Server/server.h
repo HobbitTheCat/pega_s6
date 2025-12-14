@@ -1,9 +1,11 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include "SupportStructure/log_bus.h"
 #include "session_bus.h"
 #include "SupportStructure/fd_map.h"
 #include "Server/server_conn.h"
+#include "Log/log.h"
 
 #define MAX_EVENTS 64
 
@@ -19,6 +21,8 @@ typedef struct {
     uint32_t next_player_id;
     uint32_t next_session_id;
 
+    log_thread server_logger;
+    log_bus_t* log_bus;
 } server_t;
 
 typedef enum {P_SERVER, P_CLIENT, P_BUS} pointer_type_t;
@@ -38,7 +42,7 @@ int add_epoll_event(int epoll_fd, int fd, uint32_t events, response_t* response)
 int mod_epoll_event(int epoll_fd, int fd, uint32_t events, response_t* response);
 int del_epoll_event(int epoll_fd, int fd);
 
-int init_server(server_t* server, int port);
+int init_server(server_t* server, int port, char* log_filename);
 void cleanup_server(server_t* server);
 void cleanup_connection(server_t* server, server_conn_t* conn);
 

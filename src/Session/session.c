@@ -10,11 +10,11 @@
 #include <sys/eventfd.h>
 #include <sys/timerfd.h>
 
-int init_session(session_t* session, const uint32_t session_id, const uint8_t capacity, const uint8_t is_visible){
-    printf("Try to init: id: %d, cap: %d, is_vis: %d\n", session_id, capacity, is_visible);
+int init_session(session_t* session, log_bus_t* log_bus, const uint32_t session_id, const uint8_t capacity, const uint8_t is_visible){
+    log_bus_push_param(log_bus, session_id,LOG_DEBUG,"Try to init: id: %d, cap: %d, is_vis: %d",  session_id, capacity, is_visible);
     session->game = malloc(sizeof(game_t));
-    if (!session->game) {printf("!game\n"); return -1;}
-    if (init_game(session->game, 4, 5, 10, 104, 5, capacity) == -1) {free(session->game); printf("!init_game\n"); return -1;}
+    if (!session->game) {log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error"); return -1;}
+    if (init_game(session->game, 4, 5, 10, 104, 5, capacity) == -1) {free(session->game); log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error"); return -1;}
     session->capacity = capacity;
     session->number_players = 0;
     session->left_count = 0;
@@ -26,16 +26,16 @@ int init_session(session_t* session, const uint32_t session_id, const uint8_t ca
 
 
     session->players = calloc(capacity, sizeof(player_t));
-    if (!session->players) {perror("session: create session bus"); free(session->game); return -1;}
+    if (!session->players) {log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error session_player"); free(session->game); return -1;}
 
     session->bus = create_session_bus(256, session->id);
     if (!session->bus) {
-        perror("session: create session bus");
+        log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error session_bus");
         free(session->game);
         free(session->players);
         return -1;
     }
-
+    session->log_bus = log_bus;
     session->running = 1;
     return 0;
 }
@@ -46,6 +46,7 @@ void cleanup_session(session_t* session) {
     free(session->game);
     destroy_session_bus(session->bus);
     session->bus = NULL;
+    session->log_bus = NULL;
     free(session->players);
     session->players = NULL;
     if (session->timer_fd != -1) {
@@ -82,7 +83,7 @@ void* session_main(void* arg) {
     while (session->running) {
         const int n = poll(fds, nfds, -1);
         if (session->unregister_send == 1) continue;
-        if (n < 0) {if (errno == EINTR) continue; perror("session: poll"); break;}
+        if (n < 0) {if (errno == EINTR) continue; log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"session: poll"); break;}
         if (fds[0].revents & POLLIN) {
             uint64_t count = 0;
             for (;;) {
@@ -90,7 +91,7 @@ void* session_main(void* arg) {
                 if (rd == sizeof(count)) break;
                 if (rd == -1 && errno == EAGAIN) break;
                 if (rd == -1 && errno == EINTR) continue;
-                perror("session read(event_fd");
+                log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"session read(event_fd");
                 break;
             }
             ring_buffer_t* read_buffer = &session->bus->read.queue;
@@ -99,10 +100,8 @@ void* session_main(void* arg) {
                 const int received = buffer_pop(read_buffer, &msg);
                 if (received == BUFFER_EEMPTY) break;
                 if (received == BUFFER_SUCCESS && msg) {
-                    // print_session_message(msg);
                     if (handle_system_message(session, msg) > 0) continue;
                     handle_game_message(session, msg);
-
                     free(msg);
                 }
             }
@@ -112,7 +111,9 @@ void* session_main(void* arg) {
             uint64_t expiration;
             const ssize_t rd = read(session->timer_fd, &expiration, sizeof(uint64_t));
             if (rd == sizeof(expiration)) {
-                if (!(rd == -1 && (errno == EAGAIN || errno == EINTR))) {perror("sessoin: read(timer_fd)");}
+                if (!(rd == -1 && (errno == EAGAIN || errno == EINTR))) {
+                    log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"sessoin: read(timer_fd)");
+                }
                 else {//TODO add time related events
                     }
             }

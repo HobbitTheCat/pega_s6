@@ -8,7 +8,6 @@
 #include <unistd.h>
 
 int user_handle_packet(user_t* user, const uint8_t type, const uint8_t* payload, const uint16_t payload_length) {
-    printf("Pakcet_type: %d\n", type);
     switch (type) {
         case PKT_WELCOME:
             if (user->client_id == 0) {
@@ -54,8 +53,13 @@ void user_execute_command(user_t* user, const char* cmd) {
     else if (strncmp(cmd, "dconn", 5) == 0) user_close_connection(user);
     else if (strncmp(cmd, "rconn", 5) == 0) user_send_reconnect(user);
     else if (strncmp(cmd, "slist", 5) == 0) user_send_simple(user, PKT_GET_SESSION_LIST);
-    else if (strncmp(cmd, "join1", 5) == 0) user_send_join_session(user, 1);
     else if (strncmp(cmd, "start", 5) == 0) user_send_simple(user, PKT_START_SESSION);
+    else if (strncmp(cmd, "join", 4) == 0 && cmd[4] == ' ') {
+        int session_id;
+        if (scanf(cmd+5, "%d", &session_id) == 1) {
+            user_send_join_session(user, session_id);
+        } else fprintf(stderr, "Bad join command. Usage: join <number>\n");
+    }
     else if (strncmp(cmd, "play", 4) == 0 && cmd[4] == ' ') {
         int card_value;
         if (sscanf(cmd + 5, "%d", &card_value) == 1) {
@@ -66,6 +70,6 @@ void user_execute_command(user_t* user, const char* cmd) {
         int row_number;
         if (sscanf(cmd + 5, "%d", &row_number) == 1) {
             user_send_response_extra(user, row_number);
-        } else fprintf(stderr, "Bad play command. Usage: play <number>\n");
+        } else fprintf(stderr, "Bad play command. Usage: extr <number>\n");
     }
 }

@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "User/user.h"
+#include "Display/display_session.h"
 
 int user_enqueue_message(user_t* user, const uint8_t* buffer, const uint32_t total_length) {
     tx_state_t* tx = &user->tx;
@@ -168,25 +169,10 @@ int client_handle_request_extra(user_t* user,
         return -1;
     }
 
-    const pkt_card_t* cards = (const pkt_card_t*)(hdr + 1);
+    pkt_card_t* cards = (pkt_card_t*)(hdr + 1);
 
-    // ---- Только выводим информацию ----
-    printf("\n===== EXTRA REQUEST =====\n");
-    printf("Cards to consider:\n");
+    display_extr(cards,card_count,user);
 
-    for (uint8_t i = 0; i < card_count; ++i) {
-        const pkt_card_t* c = &cards[i];
-        printf("  [%u] num=%d head=%d owner=%u\n",
-               (unsigned)i,
-               (int)c->num,
-               (int)c->numberHead,
-               (unsigned)c->client_id);
-    }
-
-    printf("\nRows available: 0..%u",
-           (unsigned)(user->nb_line - 1));
-
-    printf("Please send RESPONSE_EXTRA with chosen row index.\n");
     return 0;
 }
 
@@ -275,45 +261,14 @@ int client_handle_session_info(user_t* user, const uint8_t* payload, const uint1
         return -1;
     }
 
-    const pkt_player_score_t* scores = (const pkt_player_score_t*)(hdr + 1);
-    const pkt_card_t* board_cards = (const pkt_card_t*)(scores + player_count);
-    const pkt_card_t* hand_cards  = board_cards + board_length;
+    pkt_player_score_t* scores = ( pkt_player_score_t*)(hdr + 1);
+    pkt_card_t* board_cards = ( pkt_card_t*)(scores + player_count);
+    pkt_card_t* hand_cards  = board_cards + board_length;
 
-    printf("\n===== SCORES =====\n");
-    printf("%-10s | %s\n", "Player ID", "Score (Heads)");
-    printf("-----------|--------------\n");
-    for (uint16_t i = 0; i < player_count; ++i) {
-        printf("%-10u | %u\n", scores[i].player_id, scores[i].nb_head);
-    }
-    printf("\n");
-
-    printf("===== BOARD =====\n");
-    for (uint16_t r = 0; r < user->nb_line; ++r) {
-        for (uint16_t c = 0; c < user->nb_card_line; ++c) {
-            const pkt_card_t* card = &board_cards[r * user->nb_card_line + c];
-
-            if (card->num == 0) {
-                printf("[   ] ");
-            } else {
-                printf("[%3d] ", (int)card->num);
-            }
-        }
-        printf("\n");
-    }
-
-    printf("\n===== YOUR HAND =====\n");
-    int any_hand = 0;
-    for (uint16_t i = 0; i < hand_count; ++i) {
-        const pkt_card_t* card = &hand_cards[i];
-        // if (card->num == 0) continue;
-        printf("[%3d] ", (int)card->num);
-        any_hand = 1;
-    }
-    if (!any_hand) {
-        printf("(no cards)\n");
-    } else {
-        printf("\n");
-    }
+    display_scores(scores,player_count);
+    display_board(board_cards,user);
+    display_hand(hand_cards,user,hand_count,1);
+    display_hand(hand_cards,user,hand_count,0);
 
     printf("\n");
     return 0;

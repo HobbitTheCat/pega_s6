@@ -15,14 +15,16 @@ typedef enum { START, ACTION, EXTR, PHASE_RESULT, RESULT } event_type_s;
 
 typedef struct {
     uint32_t id;
-
-    player_t* players;
-    uint32_t id_creator;
     uint8_t is_visible;
 
-    size_t capacity;
-    size_t number_players;
-    size_t left_count;
+    uint32_t id_creator;
+
+    player_t* players;
+    size_t max_clients;     // Size of players
+    size_t game_capacity;   // Max players by rules
+
+    size_t number_clients;  // All clients (including observers)
+    size_t active_players;  // ROLE_PLAYER
 
     session_bus_t* bus;
     log_bus_t* log_bus;
@@ -32,13 +34,6 @@ typedef struct {
 
     game_t* game;
 } session_t;
-
-typedef struct {
-    session_bus_t* bus;
-    uint8_t is_visible;
-    size_t capacity;
-    size_t number_players;
-} server_session_t;
 
 int init_session(session_t* session, log_bus_t* log_bus, uint32_t session_id, uint8_t capacity, uint8_t is_visible);
 void send_unregister(session_t* session);
@@ -55,7 +50,8 @@ int send_system_message_to_server(const session_t* session, uint32_t user_id, sy
 int get_index_by_id(const session_t* session, uint32_t user_id);
 int get_first_free_player_place(const session_t* session);
 
-int add_player(session_t* session, uint32_t client_id);
+int add_player(session_t* session, uint32_t client_id, player_role_t role);
+int change_player_role(session_t* session, uint32_t player_id, player_role_t new_role);
 int remove_player(session_t* session, uint32_t client_id);
 
 // Packets

@@ -78,4 +78,5 @@ int client_handle_session_list(const uint8_t* payload, uint16_t payload_length);
 int client_handle_session_state(user_t* user, const uint8_t* payload, uint16_t payload_length);
 int client_handle_session_info(user_t* user, const uint8_t* payload, uint16_t payload_length);
 int client_handle_phase_result(const user_t* user, const uint8_t* payload, uint16_t payload_length);
+int client_handle_error_packet(const uint8_t* payload, uint16_t payload_length);
 #endif //USER_H

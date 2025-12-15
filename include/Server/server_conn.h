@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "Protocol/proto_io.h"
+#include "SupportStructure/session_bus.h"
 
 typedef enum {
     PLAYER_STATE_LOBBY,
@@ -41,6 +42,13 @@ typedef struct server_conn_s {
 
     server_player_t* player; // NULL before registration/reconnect
 } server_conn_t;
+
+typedef struct {
+    session_bus_t* bus;
+    uint8_t is_visible;
+    size_t capacity;
+    size_t number_players;
+} server_session_t;
 
 void server_conn_init(server_conn_t* conn, int fd);
 void server_conn_free_tx(server_conn_t* conn);

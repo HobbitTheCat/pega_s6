@@ -5,15 +5,18 @@
 
 int create_player(player_t* player, const uint32_t client_id, const uint8_t nb_cards) {
     player->player_id = client_id;
-    player->player_cards_id = malloc(nb_cards * sizeof(int));
-    if (!player->player_cards_id) return -1;
-    player->last_active_time = 0;
+    if (nb_cards > 0) {
+        player->player_cards_id = malloc(nb_cards * sizeof(int));
+        if (!player->player_cards_id) return -1;
+    }
+    else player->player_cards_id = NULL;
+
     return 0;
 }
 
 int cleanup_player(player_t* player) {
     player->player_id = 0;
-    free(player->player_cards_id);
+    if (player->player_cards_id) free(player->player_cards_id);
     return 0;
 }
 

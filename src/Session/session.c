@@ -14,10 +14,13 @@ int init_session(session_t* session, log_bus_t* log_bus, const uint32_t session_
     log_bus_push_param(log_bus, session_id,LOG_DEBUG,"Try to init: id: %d, cap: %d, is_vis: %d",  session_id, capacity, is_visible);
     session->game = malloc(sizeof(game_t));
     if (!session->game) {log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error"); return -1;}
-    if (init_game(session->game, 4, 5, 10, 104, 5, capacity) == -1) {free(session->game); log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error"); return -1;}
-    session->capacity = capacity;
-    session->number_players = 0;
-    session->left_count = 0;
+    if (init_game(session->game, 4, 5, 10, 104, 5, 20, capacity) == -1) {free(session->game); log_bus_push_message(log_bus, session_id, LOG_ERROR, "Creation error"); return -1;}
+
+    session->max_clients = 20;
+    session->game_capacity = capacity;
+
+    session->number_clients = 0;
+    session->active_players = 0;
 
     session->is_visible = is_visible;
     session->id = session_id;
@@ -25,10 +28,10 @@ int init_session(session_t* session, log_bus_t* log_bus, const uint32_t session_
     session->timer_fd = -1;
 
 
-    session->players = calloc(capacity, sizeof(player_t));
+    session->players = calloc(session->max_clients, sizeof(player_t));
     if (!session->players) {log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error session_player"); free(session->game); return -1;}
 
-    session->bus = create_session_bus(256, session->id);
+    session->bus = create_session_bus(512, session->id);
     if (!session->bus) {
         log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error session_bus");
         free(session->game);
@@ -119,7 +122,7 @@ void* session_main(void* arg) {
             }
         }
 
-        if (session->number_players == 0 && session->unregister_send == 0) {
+        if (session->number_clients == 0 && session->unregister_send == 0) {
             send_unregister(session);
         }
     }
@@ -129,40 +132,109 @@ void* session_main(void* arg) {
     return NULL;
 }
 
+
 int get_index_by_id(const session_t* session, const uint32_t user_id) {
-    for (int i = 0; (size_t)i < session->capacity; i++) {
-        if (session->players[i].player_id == user_id) {
-            return i;
-        }
-    }
-    return -1;
-}
-int get_first_free_player_place(const session_t* session) {
-    for (int i = 0; (size_t)i < session->capacity; i++) {
-        if (session->players[i].player_id == 0) {
-            return i;
+    if (user_id == 0) return -1;
+    for (size_t i = 0; i < session->max_clients; i++) {
+        if (session->players[i].role != ROLE_NONE && session->players[i].player_id == user_id) {
+            return (int) i;
         }
     }
     return -1;
 }
 
-int add_player(session_t* session, const uint32_t client_id) {
+int get_first_free_player_place(const session_t* session) {
+    for (int i = 0; (size_t)i < session->max_clients; i++) {
+        if (session->players[i].player_id == 0) {
+            return (int) i;
+        }
+    }
+    return -1;
+}
+
+int add_player(session_t* session, const uint32_t client_id, player_role_t role) {
     if (get_index_by_id(session, client_id) != -1) return -1;
     const int idx = get_first_free_player_place(session);
     if (idx == -1) return -2;
     player_t* p = &session->players[idx];
-    create_player(p, client_id, session->game->nbrCardsPlayer);
-    session->number_players++;
+
+    if (role == ROLE_PLAYER && session->game->game_state != INACTIVE) {role = ROLE_OBSERVER;}
+    const int card_to_alloc = (role == ROLE_PLAYER) ? session->game->nbrCardsPlayer : 0;
+    create_player(p, client_id, card_to_alloc);
+    p->role = role;
+    p->is_connected = 1;
+
+    session->number_clients++;
+    if (role == ROLE_PLAYER) session->active_players++;
+    return 0;
+}
+
+int change_player_role(session_t* session, const uint32_t player_id, const player_role_t new_role) {
+    const int index = get_index_by_id(session, player_id);
+    if (index == -1) return -1;
+
+    player_t* p = &session->players[index];
+    if (p->role == new_role) return 0;
+
+    if (new_role == ROLE_PLAYER) {
+        if (session->active_players >= session->game_capacity) return -2;
+        if (session->game->game_state != INACTIVE) return -3;
+        if (p->player_cards_id == NULL) {
+            p->player_cards_id = malloc(session->game->nbrCardsPlayer * sizeof(int));
+            if (p->player_cards_id == NULL) return -4;
+            for (int i = 0; i < session->game->nbrCardsPlayer; i++) {p->player_cards_id[i] = -1;}
+        }
+        session->active_players++;
+    } else if (new_role == ROLE_OBSERVER) {
+        if (p->player_cards_id) {
+            free(p->player_cards_id);
+            p->player_cards_id = NULL;
+        }
+        session->active_players--;
+        if (session->game->game_state != INACTIVE) {
+            session->game->card_ready_to_place[index] = -1;
+            const int result = start_move(session);
+            handle_result_of_play(session, result); // TODO verify
+        }
+    }
+    p->role = new_role;
     return 0;
 }
 
 int remove_player(session_t* session, const uint32_t client_id) {
-    const int player_index = get_index_by_id(session, client_id);
-    if (player_index == -1) return -1;
-    if (client_id == session->id_creator && session->number_players > 1)
-        for (int i = 0; (size_t)i < session->capacity; i++)
-            if (session->players[i].player_id != 0) {session->id_creator = session->players[i].player_id; break;}
-    cleanup_player(&session->players[player_index]);
-    session->number_players--;
+    const int index = get_index_by_id(session, client_id);
+    if (index == -1) return 0;
+    player_t* p = &session->players[index];
+
+    if (client_id == session->id_creator && session->number_clients > 1) {
+        int new_creator_index = -1;
+        for (size_t i = 0; i < session->max_clients; i++) {
+            if (i == (size_t)index) continue;
+            if (session->players[i].role == ROLE_PLAYER)
+                new_creator_index = (int)i; break;
+        }
+        if (new_creator_index == -1) {
+            for (size_t i = 0; i < session->max_clients; i++) {
+                if (i == (size_t)index) continue;
+                if (session->players[i].role == ROLE_OBSERVER)
+                    new_creator_index = (int)i; break;
+            }
+        }
+        if (new_creator_index != -1) {
+            session->id_creator = session->players[new_creator_index].player_id;
+        }
+    }
+    if (p->role == ROLE_PLAYER) {
+        session->active_players--;
+        if (session->game->game_state != INACTIVE) {
+            session->game->card_ready_to_place[index] = -1;
+            const int result = start_move(session);
+            handle_result_of_play(session, result); // TODO verify
+        }
+    }
+    session->number_clients--;
+    cleanup_player(p);
+    p->role = ROLE_NONE;
+    p->is_connected = 0;
     return 0;
 }

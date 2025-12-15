@@ -1,8 +1,67 @@
-[1765750961] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
-[1765750963] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
-[1765750965] [DEBUG] [ID:1] Try to init: id: 1, cap: 4, is_vis: 1
-[1765750967] [SESSION] [ID:1] START:0_54_1;1_57_3;2_21_1;3_102_3;
-[1765750979] [SESSION] [ID:1] ACTION:2_66_2;
-[1765750981] [INFO] [ID:0] client disconnected
-[1765750981] [DEBUG] [ID:1] User left left_count 1 nb player 1
-[1765750981] [INFO] [ID:0] Session unregistered 1
+[1765782797] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
+[1765782821] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
+[1765782826] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
+[1765782829] [DEBUG] [ID:1] Try to init: id: 1, cap: 4, is_vis: 1
+[1765782829] [DEBUG] [ID:1] Client 3 joined as PLAYER
+[1765782855] [DEBUG] [ID:1] Got bot_add packet
+[1765782855] [DEBUG] [ID:1] Add 1 bots, diff: 1
+[1765782855] [DEBUG] [ID:0] Creation of new bot
+[1765782855] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
+[1765782857] [DEBUG] [ID:1] Client 4 joined as PLAYER
+[1765782858] [SESSION] [ID:1] START:0_3_1;1_76_1;2_49_2;3_27_1;
+[1765782868] [DEBUG] [ID:1] Client 2 joined as OBSERVER
+[1765782883] [SESSION] [ID:1] ACTION:4_18_3;
+[1765782884] [SESSION] [ID:1] ACTION:4_75_1;
+[1765782885] [SESSION] [ID:1] ACTION:4_86_3;
+[1765782886] [SESSION] [ID:1] ACTION:4_64_3;
+[1765782887] [SESSION] [ID:1] ACTION:4_24_3;
+[1765782888] [SESSION] [ID:1] ACTION:4_104_4;
+[1765782889] [SESSION] [ID:1] ACTION:4_51_5;
+[1765782890] [SESSION] [ID:1] ACTION:4_77_1;
+[1765782891] [SESSION] [ID:1] ACTION:4_37_5;
+[1765782893] [SESSION] [ID:1] ACTION:4_15_1;
+[1765782894] [DEBUG] [ID:1] Phase result:
+[1765782894] [DEBUG] [ID:1] (4: 8)
+[1765782894] [DEBUG] [ID:1] (2: 0)
+[1765782894] [SESSION] [ID:1] PHASE_RESULT:4_8;
+[1765782896] [INFO] [ID:0] client disconnected
+[1765783064] [INFO] [ID:0] Session unregistered 1
+[1765783067] [DEBUG] [ID:1] Try to init: id: 1, cap: 4, is_vis: 1
+[1765783067] [DEBUG] [ID:1] Client 2 joined as PLAYER
+[1765783070] [DEBUG] [ID:1] Got bot_add packet
+[1765783070] [DEBUG] [ID:1] Add 1 bots, diff: 1
+[1765783070] [DEBUG] [ID:0] Creation of new bot
+[1765783070] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
+[1765783072] [DEBUG] [ID:1] Client 5 joined as PLAYER
+[1765783072] [DEBUG] [ID:1] Got bot_add packet
+[1765783072] [DEBUG] [ID:1] Add 1 bots, diff: 1
+[1765783072] [DEBUG] [ID:0] Creation of new bot
+[1765783072] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
+[1765783074] [DEBUG] [ID:1] Client 6 joined as PLAYER
+[1765783076] [DEBUG] [ID:1] Got bot_add packet
+[1765783076] [DEBUG] [ID:1] Add 1 bots, diff: 1
+[1765783076] [DEBUG] [ID:0] Creation of new bot
+[1765783076] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
+[1765783078] [DEBUG] [ID:1] Client 7 joined as PLAYER
+[1765783082] [DEBUG] [ID:1] Client 3 joined as OBSERVER
+[1765783095] [SESSION] [ID:1] START:0_63_2;1_5_1;2_81_1;3_77_3;
+[1765783098] [DEBUG] [ID:1] Client 3 joined as OBSERVER
+[1765783101] [SESSION] [ID:1] ACTION:5_38_3;6_30_2;7_78_1;
+[1765783102] [SESSION] [ID:1] ACTION:5_74_4;6_94_4;7_86_1;
+[1765783103] [SESSION] [ID:1] ACTION:5_76_4;6_83_1;7_80_1;
+[1765783104] [SESSION] [ID:1] ACTION:5_59_2;6_40_3;7_79_4;
+[1765783105] [SESSION] [ID:1] ACTION:5_36_1;6_32_2;7_98_3;
+[1765783107] [SESSION] [ID:1] ACTION:5_27_1;6_22_1;7_87_1;
+[1765783109] [SESSION] [ID:1] ACTION:5_23_4;6_19_4;7_75_2;
+[1765783111] [SESSION] [ID:1] ACTION:5_18_2;6_55_1;7_46_3;
+[1765783113] [SESSION] [ID:1] ACTION:5_6_3;6_44_4;7_52_4;
+[1765783116] [SESSION] [ID:1] ACTION:5_4_2;6_71_1;7_62_3;
+[1765783117] [DEBUG] [ID:1] Phase result:
+[1765783117] [DEBUG] [ID:1] (5: 7)
+[1765783117] [DEBUG] [ID:1] (6: 33)
+[1765783117] [DEBUG] [ID:1] (7: 11)
+[1765783117] [DEBUG] [ID:1] (3: 0)
+[1765783117] [SESSION] [ID:1] PHASE_RESULT:5_7;6_33;7_11;
+[1765783119] [WARN] [ID:0] receive
+[1765783119] [WARN] [ID:0] receive
+[1765783119] [WARN] [ID:0] receive

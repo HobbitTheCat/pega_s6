@@ -10,11 +10,9 @@
 #include <time.h>
 #include <sys/random.h>
 
-// TODO add function to check that game is valid
 
-int init_game(game_t* game, const uint8_t nbrLign, const uint8_t nbrCardsLign, const uint8_t nbrCardsPlayer, const uint8_t nbrCards, const uint8_t nbrHead,const uint8_t nb_player) {
-    if (nbrCards <= (uint8_t)(nbrCardsPlayer * nb_player)) { return -1;
-    }
+int init_game(game_t* game, const uint8_t nbrLign, const uint8_t nbrCardsLign, const uint8_t nbrCardsPlayer, const uint8_t nbrCards, const uint8_t nbrHead, const uint8_t nb_player, const uint8_t game_capacity) {
+    if (nbrCards <= (uint8_t)(nbrCardsPlayer * game_capacity)) { return -1;}
 
     game->nbrLign = nbrLign;
     game->nbrCardsLign = nbrCardsLign;
@@ -24,10 +22,9 @@ int init_game(game_t* game, const uint8_t nbrLign, const uint8_t nbrCardsLign, c
     game->game_state = INACTIVE;
     game->card_ready_to_place_count = 0;
 
-    game->nextCards = 0; // TODO rewrite
+    game->nextCards = 0;
 
     game->deck = malloc(game->nbrCards * sizeof(card_t));
-
     if (!game->deck) { return -1;}
 
     game->board = malloc((size_t)game->nbrCardsLign * game->nbrLign * sizeof(int));
@@ -37,14 +34,14 @@ int init_game(game_t* game, const uint8_t nbrLign, const uint8_t nbrCardsLign, c
     game->card_ready_to_place = malloc(nb_player*sizeof(int));
     if (!game->card_ready_to_place) { free(game->deck); free(game->board); return -1;}
     memset(game->card_ready_to_place, -1, nb_player*sizeof(int));
-    return 0;
 
+    return 0;
 }
 
 void cleanup_game(const game_t* game) {
-    free(game->board);
-    free(game->deck);
-    free(game->card_ready_to_place);
+    if (game->board) free(game->board);
+    if (game->deck) free(game->deck);
+    if (game->card_ready_to_place) free(game->card_ready_to_place);
 }
 
 int distrib_cards(game_t* game, const player_t* player, const int nb_player, log_bus_t* bus, const int session_id) {
@@ -53,12 +50,16 @@ int distrib_cards(game_t* game, const player_t* player, const int nb_player, log
         game->deck[i] = card;
     }
 
-    int ids[game->nbrCards];
+    // int ids[game->nbrCards];
+    int* ids = malloc(game->nbrCards * sizeof(int));
+    if (!ids) { log_bus_push_message(bus, session_id, LOG_ERROR, "Allocation error"); return -1; }
+
     for (int i = 0; i < game->nbrCards; i++) ids[i] = i;
     melange_ids(ids, game->nbrCards);
     melange_head(ids, game);
     melange_ids(ids, game->nbrCards);
 
+    game->nextCards = 0;
     for (int i = 0; i < game->nbrCardsLign * game->nbrLign; ++i) {
         if (i % game->nbrCardsLign == 0) {
             if (game->nextCards < game->nbrCards) {
@@ -72,14 +73,18 @@ int distrib_cards(game_t* game, const player_t* player, const int nb_player, log
     }
 
     for (int i=0; i<nb_player;i++) {
-        if (player[i].player_id == 0) continue;
+        if (player[i].player_id == 0 || player[i].role != ROLE_PLAYER) continue;
         if (game->nextCards + game->nbrCardsPlayer <= game->nbrCards) {
-            memcpy(player[i].player_cards_id, ids + game->nextCards, (size_t)game->nbrCardsPlayer*sizeof(int));
-            game->nextCards += game->nbrCardsPlayer;
+            if (player[i].player_cards_id != NULL) {
+                memcpy(player[i].player_cards_id, ids + game->nextCards, (size_t)game->nbrCardsPlayer*sizeof(int));
+                game->nextCards += game->nbrCardsPlayer;
+            } else log_bus_push_param(bus, session_id,LOG_ERROR,"Player %d (ROLE_PLAYER) has NULL memory!", player[i].player_id);
         } else {
             log_bus_push_param(bus, session_id,LOG_WARN,"Player %d has no cards.", player[i].player_id);
         }
     }
+
+    free(ids);
     game->game_state = WAITING;
     return 0;
 }
@@ -98,9 +103,8 @@ int melange_ids(int* ids, const int length) {
 }
 
 int melange_head(const int* ids, const game_t* game) {
-    if (game->nbHead == 0 || game->nbrCards == 0) {
-        return -1;
-    }
+    if (game->nbHead == 0 || game->nbrCards == 0) return -1;
+
     const int total_poids = game->nbHead * (game->nbHead + 1) / 2;
     int current_card_index = 0;
     int cartes_restantes = game->nbrCards;
@@ -136,8 +140,9 @@ int melange_head(const int* ids, const game_t* game) {
 }
 
 
-int checking_cards(game_t* game,player_t* player) {
-     for (int i=0;i<game->nbrCardsPlayer;i++) {
+int checking_cards(game_t* game, player_t* player) {
+    if (player->player_cards_id == NULL) return 1;
+     for (int i = 0; i < game->nbrCardsPlayer; i++) {
          if (player->player_cards_id[i] != -1) return 0;
      }
       return 1;

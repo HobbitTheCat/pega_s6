@@ -29,7 +29,7 @@ typedef struct {
 } game_t;
 
 
-int init_game(game_t* game, uint8_t nbrLign, uint8_t nbrCardsLign, uint8_t nbrCardsPlayer, uint8_t nbrCards, uint8_t nbrHead, uint8_t nb_player);
+int init_game(game_t* game, uint8_t nbrLign, uint8_t nbrCardsLign, uint8_t nbrCardsPlayer, uint8_t nbrCards, uint8_t nbrHead, uint8_t nb_player, uint8_t game_capacity);
 void cleanup_game(const game_t* game);
 
 int distrib_cards(game_t* game, const player_t* player, int nb_player, log_bus_t* bus, int session_id);

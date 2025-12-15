@@ -58,7 +58,7 @@ int session_send_error_packet(const session_t* session, const uint32_t user_id, 
 int session_send_state(const session_t* session, const uint32_t user_id) {
     const size_t payload_length = sizeof(pkt_session_state_payload_t);
 
-    uint8_t* payload = malloc(payload_length);
+    uint8_t* payload = calloc(1, payload_length);
     if (!payload) {log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"Allocation Fail"); return -1;}
 
     pkt_session_state_payload_t* packet = (pkt_session_state_payload_t*)payload;
@@ -104,10 +104,10 @@ int push_modification_log(const session_t* session, const event_type_s action) {
 
         case ACTION:
             pos = append(msg, pos, "ACTION:");
-            for (int p = 0; p <(int) session->capacity; p++) {
+            for (int p = 0; p <(int) session->max_clients; p++) {
                 const player_t* player = &session->players[p];
                 const int idx = session->game->card_ready_to_place[p];
-                if (player->player_id == 0 || idx == -1) continue;
+                if (player->player_id == 0 || player->role != ROLE_PLAYER || idx == -1) continue;
 
                 const card_t card = session->game->deck[idx];
                 pos = append(msg, pos, "%u_%d_%d;", player->player_id, card.num, card.numberHead);
@@ -116,9 +116,9 @@ int push_modification_log(const session_t* session, const event_type_s action) {
 
         case PHASE_RESULT:
             pos = append(msg, pos, "PHASE_RESULT:");
-            for (int p = 0; p < (int)session->capacity; p++) {
+            for (int p = 0; p < (int)session->max_clients; p++) {
                 const player_t* player = &session->players[p];
-                if (player->player_id == 0) continue;
+                if (player->player_id == 0 || player->role != ROLE_PLAYER) continue;
 
                 pos = append(msg, pos, "%u_%d;", player->player_id, player->nb_head);
             }
@@ -142,19 +142,18 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
 
     const uint16_t board_len = (uint16_t)(game->nbrLign * game->nbrCardsLign);
     const uint8_t  max_hand  = game->nbrCardsPlayer;
-    const uint16_t hand_count = calc_hand_count(player, max_hand);
+    const uint16_t hand_count = (player->role == ROLE_PLAYER) ? calc_hand_count(player, max_hand) : 0;
 
     uint16_t active_player_count = 0;
-    for (int i = 0; (size_t)i < session->capacity; i++) {
-        if (session->players[i].player_id != 0) {
-            active_player_count++;
-        }
+    for (int i = 0; (size_t)i < session->max_clients; i++) {
+        if (session->players[i].player_id == 0 || session->players[i].role != ROLE_PLAYER) continue;
+        active_player_count++;
     }
 
     const size_t header_part = sizeof(pkt_session_info_payload_t);
-    const size_t score_part  = (size_t)active_player_count * sizeof(pkt_player_score_t);
-    const size_t board_part  = (size_t)board_len * sizeof(pkt_card_t);
-    const size_t hand_part   = (size_t)hand_count * sizeof(pkt_card_t);
+    const size_t score_part = (size_t)active_player_count * sizeof(pkt_player_score_t);
+    const size_t board_part = (size_t)board_len * sizeof(pkt_card_t);
+    const size_t hand_part = (size_t)hand_count * sizeof(pkt_card_t);
 
     const size_t payload_length = header_part + score_part + board_part + hand_part;
     if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) {
@@ -175,9 +174,9 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
 
     pkt_player_score_t* scores_out = (pkt_player_score_t*)(header + 1);
     int p_idx = 0;
-    for (int i = 0; (size_t)i < session->capacity; i++) {
+    for (size_t i = 0; i < session->max_clients; i++) {
         const player_t* p = &session->players[i];
-        if (p->player_id == 0) continue;
+        if (p->player_id == 0 || p->role != ROLE_PLAYER) continue;
         scores_out[p_idx].player_id = p->player_id;
         scores_out[p_idx].nb_head = p->nb_head;
         p_idx++;
@@ -192,25 +191,23 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
             out[i].num = card->num;
             out[i].numberHead = card->numberHead;
             out[i].client_id = card->client_id;
-        } else {
-            out[i].num = 0;
-            out[i].numberHead = 0;
-            out[i].client_id = 0;
-        }
+        } else {memset(&out[i], 0, sizeof(pkt_card_t));}
     }
 
-    uint16_t idx = 0;
-    for (uint16_t i = 0; i < game->nbrCardsPlayer; i++) {
-        const int card_index = player->player_cards_id[i];
-        if (card_index == -1) continue;
+    if (player->role == ROLE_PLAYER && player->player_cards_id != NULL) {
+        uint16_t idx = 0;
+        for (uint16_t i = 0; i < game->nbrCardsPlayer; i++) {
+            const int card_index = player->player_cards_id[i];
+            if (card_index == -1) continue;
 
-        const card_t* card = &game->deck[card_index];
+            const card_t* card = &game->deck[card_index];
 
-        pkt_card_t* dst = &out[board_len + idx];
-        dst->num = card->num;
-        dst->numberHead = card->numberHead;
-        dst->client_id = card->client_id;
-        idx++;
+            pkt_card_t* dst = &out[board_len + idx];
+            dst->num = card->num;
+            dst->numberHead = card->numberHead;
+            dst->client_id = card->client_id;
+            idx++;
+        }
     }
 
     const int result = session_send_to_player(session, user_id, PKT_SESSION_INFO, payload, payload_length);
@@ -220,8 +217,9 @@ int session_send_info(const session_t* session, const uint32_t user_id) {
 
 int session_send_phase_result(const session_t* session, const uint32_t user_id) {
     uint16_t active_player_count = 0;
-    for (int i = 0; (size_t)i < session->capacity; i++) {
-        if (session->players[i].player_id != 0) active_player_count++;
+    for (int i = 0; (size_t)i < session->max_clients; i++) {
+        if (session->players[i].player_id == 0 || session->players[i].role != ROLE_PLAYER) continue;
+        active_player_count++;
     }
 
     const size_t header_part = sizeof(pkt_phase_result_payload_t);
@@ -244,9 +242,9 @@ int session_send_phase_result(const session_t* session, const uint32_t user_id) 
 
     pkt_player_score_t* scores_out = (pkt_player_score_t*)(hdr + 1);
     int p_idx = 0;
-    for (int i = 0; (size_t)i < session->capacity; i++) {
+    for (int i = 0; (size_t)i < session->max_clients; i++) {
         const player_t* p = &session->players[i];
-        if (p->player_id == 0) continue;
+        if (p->player_id == 0 || p->role != ROLE_PLAYER) continue;
         scores_out[p_idx].player_id = p->player_id;
         scores_out[p_idx].nb_head   = p->nb_head;
         p_idx++;
@@ -282,17 +280,16 @@ int session_handle_set_rules(session_t* session, session_message_t* msg) {
     uint8_t nb_cards = pkt->nb_cards;
     uint8_t max_heads = pkt->max_heads;
 
-    if (nb_cards < nb_cards_player * session->capacity) {
+    if (nb_cards < nb_cards_player * session->game_capacity) {
         log_bus_push_message(session->log_bus, session->id, LOG_WARN, "Not enough cards");
         session_send_error_packet(session, msg->data.user.client_id, 0x34, "Not enough cards");
         return -1;
     }
 
     cleanup_game(session->game);
-    init_game(session->game, nb_lines, nb_cards_line, nb_cards_player,
-        nb_cards, max_heads, session->capacity);
+    init_game(session->game, nb_lines, nb_cards_line, nb_cards_player, nb_cards, max_heads, session->max_clients, session->game_capacity);
 
-    for (int i = 0; (size_t)i < session->capacity; i++) {
+    for (size_t i = 0; i < session->max_clients; i++) {
         const player_t* player = &session->players[i];
         if (player->player_id == 0) continue;
         session_send_state(session, player->player_id);
@@ -313,7 +310,7 @@ int session_handle_add_bot(const session_t* session, const session_message_t* ms
     const uint8_t difficulty = pkt->bot_difficulty;
 
     if (count == 0) return 0;
-    if (session->number_players + count > session->capacity) {
+    if (session->active_players + count > session->game_capacity) {
         session_send_error_packet(session, msg->data.user.client_id, 0x06, "Capacity exceeded");
         return -1;
     }

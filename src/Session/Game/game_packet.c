@@ -19,14 +19,14 @@ int get_real_index_from_visible(const int* cards, const int len, const int visib
 
 int start_move(const session_t* session) {
     if (session->game->game_state != WAITING && session->game->game_state != WAITING_EXTRA) return 0;
-    if (session->game->card_ready_to_place_count >= (int)session->number_players && session->game->card_ready_to_place_count > 0) {
+    if (session->game->card_ready_to_place_count >= (int)session->active_players && session->game->card_ready_to_place_count > 0) {
         session->game->game_state = PLAYING;
-        push_modification_log(session,ACTION);
-        for (int i = 0; i < (int)session->capacity; ++i) {
-            if (session->players[i].player_id != 0) continue;
+        push_modification_log(session, ACTION);
+        for (int i = 0; i < (int)session->max_clients; ++i) {
+            if (session->players[i].player_id != 0 || session->players[i].role == ROLE_PLAYER) continue;
             session->game->card_ready_to_place[i] = -1;
         }
-        return place_card(session->game, session->players, session->capacity);
+        return place_card(session->game, session->players, session->max_clients);
     }
     return 0;
 }
@@ -81,17 +81,15 @@ int game_handle_response_extra(session_t* session, const session_message_t* msg)
     const int index_card_to_place = get_index_by_id(session, msg->data.user.client_id);
     push_modification_log(session,EXTR);
     take_line(session->game, session->players, row_index, index_card_to_place);
-    return place_card(session->game, session->players, session->capacity);
+    return place_card(session->game, session->players, session->max_clients);
 }
 
 int game_send_request_extra(session_t* session, const uint32_t user_id) {
     const game_t* game = session->game;
     uint8_t card_count = 0;
-    for (size_t i = 0; i < session->capacity; ++i) {
+    for (size_t i = 0; i < session->max_clients; ++i) {
         const int card_index = session->game->card_ready_to_place[i];
-        if (card_index != -1) {
-            ++card_count;
-        }
+        if (card_index != -1) card_count++;
     }
 
     if (card_count == 0) return -1;
@@ -115,7 +113,7 @@ int game_send_request_extra(session_t* session, const uint32_t user_id) {
     pkt_card_t* out_card = (pkt_card_t*)(pkt + 1);
 
     uint8_t index = 0;
-    for (size_t i = 0; i < session->capacity; ++i) {
+    for (size_t i = 0; i < session->max_clients; ++i) {
         const int card_index = session->game->card_ready_to_place[i];
         if (card_index == -1) continue;
 
@@ -123,7 +121,7 @@ int game_send_request_extra(session_t* session, const uint32_t user_id) {
         out_card[index].num = card->num;
         out_card[index].numberHead = card->numberHead;
         out_card[index].client_id = card->client_id;
-        ++index;
+        index++;
     }
     const int result = session_send_to_player(session, user_id,PKT_REQUEST_EXTRA, payload, payload_length);
     if (result != -1) {

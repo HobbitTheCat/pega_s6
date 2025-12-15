@@ -159,10 +159,7 @@ int user_send_response_extra(user_t* user, const int16_t row_index) {
     return result;
 }
 
-int client_handle_request_extra(user_t* user,
-                                const uint8_t* payload,
-                                const uint16_t payload_length)
-{
+int client_handle_request_extra(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
     if (!user->game_initialized) {
         fprintf(stderr, "Client: REQUEST_EXTRA received before SESSION_STATE\n");
         return -1;
@@ -247,7 +244,6 @@ int client_handle_session_state(user_t* user, const uint8_t* payload, const uint
     printf("Session id: %d\n", pkt->session_id);
     return 0;
 }
-
 
 
 int client_handle_session_info(user_t* user, const uint8_t* payload, const uint16_t payload_length) {
@@ -341,7 +337,7 @@ int client_handle_phase_result(const user_t* user, const uint8_t* payload, const
     }
 
     pkt_player_score_t* scores = (pkt_player_score_t*)(hdr + 1);
-    display_phase_result(scores,player_count);
+    display_phase_result(scores, player_count);
     return 0;
 }
 

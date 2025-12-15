@@ -306,6 +306,12 @@ void display_start() {
     printf("\n");
 }
 
+void display_debug_comm() {
+    printf("new - new_session\nadd_bot - add_bot\nquit_s - quit session\nunreg - unregister\n");
+    printf("dconn - disconnect\nrconn - reconnect\nslist - session list\nstart - session start\n");
+    printf("close - sessoin close\ndebug - on/off debug\n join - join session\nplay - make move\n extr - extra\n");
+}
+
 void display_in_session() {
     char *couleur = "\033[32m";
     char *reset = "\033[0m";

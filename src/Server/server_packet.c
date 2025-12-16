@@ -59,25 +59,27 @@ int send_session_list(server_t* server, server_conn_t* conn) {
     size_t session_count = get_available_sessions(server, session_ids);
 
     const size_t header_part = sizeof(pkt_session_list_payload_t);
-    const size_t max_ids_by_size = (PROTOCOL_MAX_SIZE - sizeof(header_t));
+
+    const size_t max_ids_by_size =
+        (PROTOCOL_MAX_SIZE - sizeof(header_t) - header_part) / sizeof(uint32_t);
     if (session_count > max_ids_by_size) session_count = max_ids_by_size;
+
     const size_t payload_length = header_part + session_count * sizeof(uint32_t);
     if (sizeof(header_t) + payload_length > PROTOCOL_MAX_SIZE) return -1;
 
-    // uint8_t* payload = malloc(payload_length);
-    // if (!payload) return -1;
     uint8_t payload[payload_length];
+
     pkt_session_list_payload_t* pkt = (pkt_session_list_payload_t*)payload;
-    pkt->count = session_count;
-    uint32_t* out_ids = (uint32_t*)(pkt + 1);
+    pkt->count = (uint16_t)session_count;
+
+    uint8_t* p = payload + header_part;
     for (size_t i = 0; i < session_count; i++) {
-        out_ids[i] = session_ids[i];
+        memcpy(p + i * sizeof(uint32_t), &session_ids[i], sizeof(uint32_t));
     }
 
-    const int result = send_packet(server, conn, PKT_SESSION_LIST, payload, payload_length);
-    // free(payload);
-    return result;
+    return send_packet(server, conn, PKT_SESSION_LIST, payload, payload_length);
 }
+
 
 int handle_reconnect_packet(server_t* server, server_conn_t* conn, const uint8_t* payload, const uint16_t payload_length) {
     if (payload_length < sizeof(pkt_reconnect_payload_t)) {
@@ -123,6 +125,7 @@ int handle_session_create_packet(server_t* server, server_conn_t* conn, const ui
     }
     const pkt_session_create_payload_t* pkt = (const pkt_session_create_payload_t*)payload;
     if (pkt->nb_players < 2) {send_error_packet(server, conn, 0x21, "Not enough players");return -1;}
+    if (pkt->nb_players > 20) {send_error_packet(server, conn, 0x21, "Too many players");return -1;}
 
     const int session_id = create_new_session(server, pkt->nb_players, (pkt->is_visible > 0)?1:0);
     return session_id;

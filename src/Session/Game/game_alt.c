@@ -27,10 +27,12 @@ int place_card(game_t* game, player_t* player, const uint8_t capacity) {
         }
 
         if (min_card_index == -1) break;
+
         const int current_card_value = game->card_ready_to_place[min_card_index];
         int best_row = -1;
         int min_diff = game->nbrCards + 100;
         int targe_coll_index = -1;
+
         for (int i = 0; i < game->nbrLign; i++) {
             int last_card_in_row = -1;
             int last_col = -1;
@@ -65,11 +67,10 @@ int place_card(game_t* game, player_t* player, const uint8_t capacity) {
     }
     game->card_ready_to_place_count = 0;
     for (int i = 0; i < capacity; i++) {
-        if (player[i].player_id != 0) {
-            if (checking_cards(game, &player[i])) {
-                game->game_state = INACTIVE;
-                return -3;
-            }
+        if (player[i].player_id == 0 || player[i].role != ROLE_PLAYER) continue;
+        if (checking_cards(game, &player[i])) {
+            game->game_state = INACTIVE;
+            return -3;
         }
     }
     game->game_state = WAITING;

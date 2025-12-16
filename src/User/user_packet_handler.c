@@ -21,23 +21,28 @@ int user_handle_packet(user_t* user, const uint8_t type, const uint8_t* payload,
             return 0;
         case PKT_SYNC_STATE:
             client_handle_sync_state(user, payload, payload_length);
-            display_start();
+            if (user->debug_mode == 0) display_start();
             return 0;
         case PKT_SESSION_LIST:
             return client_handle_session_list(payload, payload_length);
         case PKT_SESSION_STATE:
             client_handle_session_state(user, payload, payload_length);
-            display_in_session();
+            if (user->debug_mode == 0) display_in_session();
+            printf("Got session state\n");
             return 0;
         case PKT_SESSION_INFO:
+            printf("Got Session info\n");
             return client_handle_session_info(user, payload, payload_length);
         case PKT_REQUEST_EXTRA:
             return client_handle_request_extra(user, payload, payload_length);
         case PKT_SESSION_END:
+            printf("Session was closed\n");
             return user_quit_session(user);
         case PKT_PHASE_RESULT:
             client_handle_phase_result(user, payload, payload_length);
             return 0;
+        case PKT_ERROR:
+            return client_handle_error_packet(payload, payload_length);
         default:
             printf("Got packet %d\n", type); return 0;
     }
@@ -127,7 +132,8 @@ void user_execute_command(user_t* user, const char* cmd) {
     if (strcmp(op, "rconn") == 0) { user_send_reconnect(user); return;}
     if (strcmp(op, "slist") == 0) { user_send_simple(user, PKT_GET_SESSION_LIST); return;}
     if (strcmp(op, "start") == 0) { user_send_simple(user, PKT_START_SESSION); return;}
-    if (strcmp(op, "debug") == 0) { user->debug_mode = 1;}
+    if (strcmp(op, "close") == 0) { user_send_simple(user, PKT_SESSION_CLOSE); return;}
+    if (strcmp(op, "debug") == 0) { user->debug_mode = (user->debug_mode == 0) ? 1 : 0; return;}
 
     if (strcmp(op, "join") == 0) {
         int session_id;

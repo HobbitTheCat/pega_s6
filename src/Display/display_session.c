@@ -112,7 +112,8 @@ void up_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indiceLign
     printf("\n");
     for (int i =0; i<nbrCards;i++) {
         if (board_cards[indiceLigne * user->nb_card_line + i].numberHead == 0) {
-            couleur = "\033[34m";
+            //couleur = "\033[34m";
+            continue;
         }
         else if (board_cards[indiceLigne * user->nb_card_line + i].numberHead < 3) {
             couleur = "\033[33m";
@@ -140,7 +141,8 @@ void mid_up_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indice
 
     for (int i =0; i<nbrCards;i++) {
         if (board_cards[indiceLigne * user->nb_card_line + i].numberHead == 0) {
-            couleur = "\033[34m";
+            //couleur = "\033[34m";
+            continue;
         }
         else if (board_cards[indiceLigne * user->nb_card_line + i].numberHead < 3) {
             couleur = "\033[33m";
@@ -166,7 +168,8 @@ void void_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indiceLi
     printf("%s", couleur);
     for (int i =0; i<nbrCards;i++) {
         if (board_cards[indiceLigne * user->nb_card_line + i].numberHead == 0) {
-            couleur = "\033[34m";
+            //couleur = "\033[34m";
+            continue;
         }
         else if (board_cards[indiceLigne * user->nb_card_line + i].numberHead < 3) {
             couleur = "\033[33m";
@@ -192,7 +195,8 @@ void mid_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indiceLig
     printf("%s", couleur);
     for (int i =0; i<nbrCards;i++) {
         if (board_cards[indiceLigne * user->nb_card_line + i].numberHead == 0) {
-            couleur = "\033[34m";
+            //couleur = "\033[34m";
+            continue;
         }
         else if (board_cards[indiceLigne * user->nb_card_line + i].numberHead < 3) {
             couleur = "\033[33m";
@@ -218,7 +222,8 @@ void mid_down_display_card(uint8_t nbrCards,pkt_card_t* board_cards,uint8_t indi
     printf("%s", couleur);
     for (int i =0; i<nbrCards;i++) {
         if (board_cards[indiceLigne * user->nb_card_line + i].numberHead == 0) {
-            couleur = "\033[34m";
+            //couleur = "\033[34m";
+            continue;
         }
         else if (board_cards[indiceLigne * user->nb_card_line + i].numberHead < 3) {
             couleur = "\033[33m";
@@ -304,6 +309,12 @@ void display_start() {
     printf("🠢 Quitter  : 'unreg' \n");
     printf("%s", reset);
     printf("\n");
+}
+
+void display_debug_comm() {
+    printf("new - new_session\nadd_bot - add_bot\nquit_s - quit session\nunreg - unregister\n");
+    printf("dconn - disconnect\nrconn - reconnect\nslist - session list\nstart - session start\n");
+    printf("close - sessoin close\ndebug - on/off debug\n join - join session\nplay - make move\n extr - extra\n");
 }
 
 void display_in_session() {

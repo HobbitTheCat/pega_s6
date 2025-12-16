@@ -14,10 +14,13 @@ int init_session(session_t* session, log_bus_t* log_bus, const uint32_t session_
     log_bus_push_param(log_bus, session_id,LOG_DEBUG,"Try to init: id: %d, cap: %d, is_vis: %d",  session_id, capacity, is_visible);
     session->game = malloc(sizeof(game_t));
     if (!session->game) {log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error"); return -1;}
-    if (init_game(session->game, 4, 5, 10, 104, 5, capacity) == -1) {free(session->game); log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error"); return -1;}
-    session->capacity = capacity;
-    session->number_players = 0;
-    session->left_count = 0;
+    if (init_game(session->game, 4, 5, 10, 104, 5, 20, capacity) == -1) {free(session->game); log_bus_push_message(log_bus, session_id, LOG_ERROR, "Creation error"); return -1;}
+
+    session->max_clients = 20;
+    session->game_capacity = capacity;
+
+    session->number_clients = 0;
+    session->active_players = 0;
 
     session->is_visible = is_visible;
     session->id = session_id;
@@ -25,10 +28,10 @@ int init_session(session_t* session, log_bus_t* log_bus, const uint32_t session_
     session->timer_fd = -1;
 
 
-    session->players = calloc(capacity, sizeof(player_t));
+    session->players = calloc(session->max_clients, sizeof(player_t));
     if (!session->players) {log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error session_player"); free(session->game); return -1;}
 
-    session->bus = create_session_bus(256, session->id);
+    session->bus = create_session_bus(512, session->id);
     if (!session->bus) {
         log_bus_push_message(log_bus, session_id, LOG_ERROR, "Alloc error session_bus");
         free(session->game);
@@ -118,7 +121,7 @@ void* session_main(void* arg) {
             }
         }
 
-        if (session->number_players == 0 && session->unregister_send == 0) {
+        if (session->number_clients == 0 && session->unregister_send == 0) {
             send_unregister(session);
         }
     }
@@ -128,32 +131,31 @@ void* session_main(void* arg) {
     return NULL;
 }
 
+
 int get_index_by_id(const session_t* session, const uint32_t user_id) {
-    for (int i = 0; (size_t)i < session->capacity; i++) {
-        if (session->players[i].player_id == user_id) {
-            return i;
-        }
-    }
-    return -1;
-}
-int get_first_free_player_place(const session_t* session) {
-    for (int i = 0; (size_t)i < session->capacity; i++) {
-        if (session->players[i].player_id == 0) {
-            return i;
+    if (user_id == 0) return -1;
+    for (size_t i = 0; i < session->max_clients; i++) {
+        if (session->players[i].role != ROLE_NONE && session->players[i].player_id == user_id) {
+            return (int) i;
         }
     }
     return -1;
 }
 
-int add_player(session_t* session, const uint32_t client_id) {
+int get_first_free_player_place(const session_t* session) {
+    for (int i = 0; (size_t)i < session->max_clients; i++) {
+        if (session->players[i].player_id == 0) {
+            return (int) i;
+        }
+    }
+    return -1;
+}
+
+int add_player(session_t* session, const uint32_t client_id, player_role_t role) {
     if (get_index_by_id(session, client_id) != -1) return -1;
     const int idx = get_first_free_player_place(session);
     if (idx == -1) return -2;
     player_t* p = &session->players[idx];
-<<<<<<< Updated upstream
-    create_player(p, client_id, session->game->nbrCardsPlayer);
-    session->number_players++;
-=======
 
     if (role == ROLE_PLAYER && session->game->game_state != INACTIVE) {role = ROLE_OBSERVER;}
     const int card_to_alloc = (role == ROLE_PLAYER) ? session->game->nbrCardsPlayer : 0;
@@ -195,20 +197,9 @@ int change_player_role(session_t* session, const uint32_t player_id, const playe
         }
     }
     p->role = new_role;
->>>>>>> Stashed changes
-    return 0;
-}
+
 
 int remove_player(session_t* session, const uint32_t client_id) {
-<<<<<<< Updated upstream
-    const int player_index = get_index_by_id(session, client_id);
-    if (player_index == -1) return -1;
-    if (client_id == session->id_creator && session->number_players > 1)
-        for (int i = 0; (size_t)i < session->capacity; i++)
-            if (session->players[i].player_id != 0) {session->id_creator = session->players[i].player_id; break;}
-    cleanup_player(&session->players[player_index]);
-    session->number_players--;
-=======
     const int index = get_index_by_id(session, client_id);
     if (index == -1) return 0;
     player_t* p = &session->players[index];
@@ -236,13 +227,12 @@ int remove_player(session_t* session, const uint32_t client_id) {
         if (session->game->game_state != INACTIVE) {
             session->game->card_ready_to_place[index] = -1;
             const int result = start_move(session);
-            handle_result_of_play(session, result);
+            handle_result_of_play(session, result); // TODO verify
         }
     }
     session->number_clients--;
     cleanup_player(p);
     p->role = ROLE_NONE;
     p->is_connected = 0;
->>>>>>> Stashed changes
     return 0;
 }

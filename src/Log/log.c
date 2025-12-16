@@ -34,7 +34,7 @@ void* log_thread_loop(void* arg) {
             fflush(file);
         }
         else {
-            sleep(2);
+            sleep(1);
         }
     }
     fclose(file);

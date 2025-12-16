@@ -122,6 +122,7 @@ void execute_task(async_bot_t* abot) {
             bot_send_simple(bot, PKT_UNREGISTER);
             bot->user.is_running = 0;
             user_close_connection(&bot->user);
+            bot_cleanup(bot);
             abot->state = STATE_DISCONNECTED;
             break;
         default:
@@ -179,7 +180,7 @@ void async_handle_packet(async_bot_t* abot, const uint8_t type, uint8_t* payload
 
 int main() {
     int is_running = 1;
-    const char* host = "10.254.141.231";
+    const char* host = "127.0.0.1";
     const int port = 17001;
 
     const int epoll_fd = epoll_create1(0);

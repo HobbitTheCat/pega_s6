@@ -33,7 +33,7 @@ void tx_free_queue(tx_state_t* tx) {
 int rx_try_extract_frame(rx_state_t* rx, header_t* out_header, uint8_t** out_payload, uint16_t* out_payload_len) {
     if (rx->have < sizeof(header_t)) return 0;
     header_t header;
-    const int r = try_peek_header(rx->buf, rx->have, &header); // возможна оптимизация при которой парсинг происходит только один раз при получении header
+    const int r = try_peek_header(rx->buf, rx->have, &header);
     if (r == -1) return 0;
     if (r == -2) return -1;
     const uint32_t total_needed_length = header.payload_length + sizeof(header_t);

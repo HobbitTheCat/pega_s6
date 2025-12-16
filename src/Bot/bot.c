@@ -13,7 +13,7 @@ int bot_init(bot_t* bot) {
 }
 
 void bot_cleanup(bot_t* bot) {
-    free(bot->placed_cards); // Double free
+    if (bot->placed_cards) free(bot->placed_cards); // Double free
     user_cleanup(&bot->user);
 }
 

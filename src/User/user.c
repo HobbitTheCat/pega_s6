@@ -158,45 +158,6 @@ void user_run(user_t* user, const char* host, uint16_t port) {
     }
 }
 
-
-// int user_handle_read(user_t* user) {
-//     rx_state_t* rx = &user->rx;
-//     for (;;) {
-//         while (rx->have < sizeof(rx->buf)) {
-//             const ssize_t n = recv(user->sockfd, rx->buf + rx->have, sizeof(rx->buf) - rx->have, 0);
-//             if (n > 0) {rx->have += (uint32_t)n; continue;}
-//             if (n == 0) {printf("Client: server closed connection\n"); return -1;}
-//             if (errno == EINTR) continue;
-//             if (errno == EAGAIN || errno == EWOULDBLOCK) break;
-//             perror("Client: recv"); return -1;
-//         }
-//
-//         for (;;) {
-//             header_t header;
-//             uint8_t* payload;
-//             uint16_t payload_len;
-//
-//             const int r = rx_try_extract_frame(rx, &header, &payload, &payload_len);
-//             if (r == 0) break;
-//             if (r == -1) {
-//                 fprintf(stderr, "Client: bad packet from server\n");
-//                 return -1;
-//             }
-//             user_handle_packet(user, header.type, payload, payload_len);
-//         }
-//
-//         if (rx->have == sizeof(rx->buf)) {
-//             fprintf(stderr, "Client: rx buffer overflow / protocol desync\n");
-//             return -1;
-//         }
-//         break;
-//     }
-//     return 0;
-// }
-// user.c
-
-// ... (предыдущий код)
-
 int user_handle_read(user_t* user) {
     rx_state_t* rx = &user->rx;
     for (;;) {

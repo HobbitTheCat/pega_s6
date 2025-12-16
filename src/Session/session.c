@@ -117,8 +117,7 @@ void* session_main(void* arg) {
                 if (!(rd == -1 && (errno == EAGAIN || errno == EINTR))) {
                     log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"sessoin: read(timer_fd)");
                 }
-                else {//TODO add time related events
-                    }
+                else {}
             }
         }
 
@@ -194,12 +193,11 @@ int change_player_role(session_t* session, const uint32_t player_id, const playe
         if (session->game->game_state != INACTIVE) {
             session->game->card_ready_to_place[index] = -1;
             const int result = start_move(session);
-            handle_result_of_play(session, result); // TODO verify
+            handle_result_of_play(session, result);
         }
     }
     p->role = new_role;
-    return 0;
-}
+
 
 int remove_player(session_t* session, const uint32_t client_id) {
     const int index = get_index_by_id(session, client_id);

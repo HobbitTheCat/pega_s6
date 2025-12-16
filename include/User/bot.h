@@ -50,6 +50,7 @@ int bot_send_resp_extra(bot_t* bot);
 
 int bot_handle_sync_state(bot_t* bot, const uint8_t* payload, uint16_t payload_length);
 int bot_handle_session_state(bot_t* bot, const uint8_t* payload, uint16_t payload_length);
+int bot_handle_session_disconnect(bot_t* bot) ;
 
 // Game
 int calculate_danger(int my_card, row_t* rows, int player_count);

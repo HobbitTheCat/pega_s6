@@ -8,7 +8,7 @@ typedef struct {
     uint16_t capacity;
 } fd_map_t;
 
-fd_map_t *fd_map_create(uint16_t initial_capacity);
+fd_map_t* fd_map_create(uint16_t initial_capacity);
 void fd_map_destroy(fd_map_t* map);
 
 int fd_map_set(fd_map_t* map, int fd, void* ptr);

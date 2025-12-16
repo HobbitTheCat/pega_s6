@@ -197,7 +197,7 @@ int change_player_role(session_t* session, const uint32_t player_id, const playe
         }
     }
     p->role = new_role;
-
+}
 
 int remove_player(session_t* session, const uint32_t client_id) {
     const int index = get_index_by_id(session, client_id);

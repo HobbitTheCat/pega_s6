@@ -1,0 +1,6 @@
+[1765926493] [DEBUG] [ID:0] server: accepted connection from 127.0.0.1
+[1765926500] [WARN] [ID:0] Session not found
+[1765926500] [WARN] [ID:0] Server error (5): Session not found
+[1765926503] [DEBUG] [ID:1] Try to init: id: 1, cap: 4, is_vis: 1
+[1765926503] [DEBUG] [ID:1] Client 1 joined as PLAYER
+[1765926505] [SESSION] [ID:1] START:0_83_1;1_55_2;2_54_3;3_21_1;

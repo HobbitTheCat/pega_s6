@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+#include "game.h"
 #include "User/bot.h"
 
 int bot_handle_packet(bot_t* bot, const uint8_t type, const uint8_t* payload, const uint16_t payload_length) {
@@ -32,6 +33,7 @@ int bot_handle_packet(bot_t* bot, const uint8_t type, const uint8_t* payload, co
             bot_send_simple(bot, PKT_SESSION_LEAVE);
             sleep(1);
             bot_send_simple(bot, PKT_UNREGISTER);
+            bot_handle_session_disconnect(bot);
             bot->user.is_running = 0;
             user_close_connection(&bot->user);
             return 0;
@@ -56,7 +58,7 @@ int bot_send_resp_extra(bot_t* bot) {
 
 int bot_handle_sync_state(bot_t* bot, const uint8_t* payload, const uint16_t payload_length) {
     client_handle_sync_state(&bot->user, payload, payload_length);
-    printf("Bot id^ %d\n", bot->user.client_id);
+    printf("Bot id %d\n", bot->user.client_id);
     return 0;
 }
 
@@ -66,7 +68,15 @@ int bot_handle_session_state(bot_t* bot, const uint8_t* payload, const uint16_t 
     const pkt_session_state_payload_t* pkt = (pkt_session_state_payload_t*) payload;
     user_join_session(&bot->user, pkt->max_card_value, pkt->nbrLign, pkt->nbrCardsLign, pkt->nbrCardsPlayer);
     bot->session_id = pkt->session_id;
+    if (bot->placed_cards != NULL) free(bot->placed_cards);
     bot->placed_cards = calloc(pkt->max_card_value, sizeof(int));
     return 0;
 }
 
+int bot_handle_session_disconnect(bot_t* bot) {
+    if (bot->session_id == 0) return 0;
+    free(bot->placed_cards);
+    bot->placed_cards = NULL;
+    bot->session_id = 0;
+    return 0;
+}

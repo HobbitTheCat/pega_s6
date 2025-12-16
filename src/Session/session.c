@@ -114,8 +114,7 @@ void* session_main(void* arg) {
                 if (!(rd == -1 && (errno == EAGAIN || errno == EINTR))) {
                     log_bus_push_message(session->log_bus,session->id,LOG_ERROR,"sessoin: read(timer_fd)");
                 }
-                else {//TODO add time related events
-                    }
+                else {}
             }
         }
 
@@ -151,12 +150,57 @@ int add_player(session_t* session, const uint32_t client_id) {
     const int idx = get_first_free_player_place(session);
     if (idx == -1) return -2;
     player_t* p = &session->players[idx];
+<<<<<<< Updated upstream
     create_player(p, client_id, session->game->nbrCardsPlayer);
     session->number_players++;
+=======
+
+    if (role == ROLE_PLAYER && session->game->game_state != INACTIVE) {role = ROLE_OBSERVER;}
+    const int card_to_alloc = (role == ROLE_PLAYER) ? session->game->nbrCardsPlayer : 0;
+    create_player(p, client_id, card_to_alloc);
+    p->role = role;
+    p->is_connected = 1;
+
+    session->number_clients++;
+    if (role == ROLE_PLAYER) session->active_players++;
+    return 0;
+}
+
+int change_player_role(session_t* session, const uint32_t player_id, const player_role_t new_role) {
+    const int index = get_index_by_id(session, player_id);
+    if (index == -1) return -1;
+
+    player_t* p = &session->players[index];
+    if (p->role == new_role) return 0;
+
+    if (new_role == ROLE_PLAYER) {
+        if (session->active_players >= session->game_capacity) return -2;
+        if (session->game->game_state != INACTIVE) return -3;
+        if (p->player_cards_id == NULL) {
+            p->player_cards_id = malloc(session->game->nbrCardsPlayer * sizeof(int));
+            if (p->player_cards_id == NULL) return -4;
+            for (int i = 0; i < session->game->nbrCardsPlayer; i++) {p->player_cards_id[i] = -1;}
+        }
+        session->active_players++;
+    } else if (new_role == ROLE_OBSERVER) {
+        if (p->player_cards_id) {
+            free(p->player_cards_id);
+            p->player_cards_id = NULL;
+        }
+        session->active_players--;
+        if (session->game->game_state != INACTIVE) {
+            session->game->card_ready_to_place[index] = -1;
+            const int result = start_move(session);
+            handle_result_of_play(session, result);
+        }
+    }
+    p->role = new_role;
+>>>>>>> Stashed changes
     return 0;
 }
 
 int remove_player(session_t* session, const uint32_t client_id) {
+<<<<<<< Updated upstream
     const int player_index = get_index_by_id(session, client_id);
     if (player_index == -1) return -1;
     if (client_id == session->id_creator && session->number_players > 1)
@@ -164,5 +208,41 @@ int remove_player(session_t* session, const uint32_t client_id) {
             if (session->players[i].player_id != 0) {session->id_creator = session->players[i].player_id; break;}
     cleanup_player(&session->players[player_index]);
     session->number_players--;
+=======
+    const int index = get_index_by_id(session, client_id);
+    if (index == -1) return 0;
+    player_t* p = &session->players[index];
+
+    if (client_id == session->id_creator && session->number_clients > 1) {
+        int new_creator_index = -1;
+        for (size_t i = 0; i < session->max_clients; i++) {
+            if (i == (size_t)index) continue;
+            if (session->players[i].role == ROLE_PLAYER)
+                new_creator_index = (int)i; break;
+        }
+        if (new_creator_index == -1) {
+            for (size_t i = 0; i < session->max_clients; i++) {
+                if (i == (size_t)index) continue;
+                if (session->players[i].role == ROLE_OBSERVER)
+                    new_creator_index = (int)i; break;
+            }
+        }
+        if (new_creator_index != -1) {
+            session->id_creator = session->players[new_creator_index].player_id;
+        }
+    }
+    if (p->role == ROLE_PLAYER) {
+        session->active_players--;
+        if (session->game->game_state != INACTIVE) {
+            session->game->card_ready_to_place[index] = -1;
+            const int result = start_move(session);
+            handle_result_of_play(session, result);
+        }
+    }
+    session->number_clients--;
+    cleanup_player(p);
+    p->role = ROLE_NONE;
+    p->is_connected = 0;
+>>>>>>> Stashed changes
     return 0;
 }

@@ -156,7 +156,10 @@ void user_run(user_t* user, const char* host, uint16_t port) {
     }
 }
 
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 int user_handle_read(user_t* user) {
     rx_state_t* rx = &user->rx;
     for (;;) {

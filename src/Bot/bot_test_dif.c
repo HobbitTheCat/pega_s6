@@ -60,7 +60,7 @@ int best_card_choice_deep(const int* placed_cards, const pkt_card_t* my_hand,
                           int row_number,
                           int row_length,
                           int max_value,
-                          int depth) {  // Новый параметр!
+                          int depth) {
 
     int total_penalty[number_of_cards_in_hand];
     memset(total_penalty, 0, number_of_cards_in_hand * sizeof(int));
@@ -109,23 +109,19 @@ int best_card_choice_deep(const int* placed_cards, const pkt_card_t* my_hand,
         index++;
     }
 
-    // Для каждой симуляции
     for (int sim = 0; sim < simulations; sim++) {
         shuffle(unknown_cards, unknow_card_count);
 
-        // Раздаём карты противникам
         int* player_hands[number_of_players];
-        player_hands[0] = hand;  // Наша рука известна
+        player_hands[0] = hand;
 
         for (int p = 1; p < number_of_players; p++) {
             player_hands[p] = unknown_cards + (p - 1) * number_of_cards_in_hand;
         }
 
-        // Тестируем каждую нашу карту
         for (int i = 0; i < number_of_cards_in_hand; i++) {
             if (hand[i] == 0) continue;
 
-            // Копируем руки игроков
             int** hands_copy = malloc(number_of_players * sizeof(int*));
             for (int p = 0; p < number_of_players; p++) {
                 hands_copy[p] = malloc(number_of_cards_in_hand * sizeof(int));
@@ -133,7 +129,6 @@ int best_card_choice_deep(const int* placed_cards, const pkt_card_t* my_hand,
                        number_of_cards_in_hand * sizeof(int));
             }
 
-            // Настраиваем начальное состояние
             GameState state = {
                 .row_number = row_number,
                 .row_length = row_length,
@@ -144,11 +139,9 @@ int best_card_choice_deep(const int* placed_cards, const pkt_card_t* my_hand,
             memcpy(state.row_penalty, row_penalty, row_number * sizeof(int));
             memcpy(state.cards_in_row, number_of_cards_in_row, row_number * sizeof(int));
 
-            // Симулируем игру на заданную глубину
             total_penalty[i] += simulate_full_game(&state, hands_copy,
                                                    number_of_cards_in_hand, depth);
 
-            // Освобождаем память
             for (int p = 0; p < number_of_players; p++) {
                 free(hands_copy[p]);
             }
@@ -156,7 +149,6 @@ int best_card_choice_deep(const int* placed_cards, const pkt_card_t* my_hand,
         }
     }
 
-    // Находим карту с минимальным штрафом
     int min_penalty = total_penalty[0];
     int best_card_index = 0;
     printf("Penalty: %d", min_penalty);

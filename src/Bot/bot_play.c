@@ -61,7 +61,7 @@ int bot_handle_session_info(bot_t* bot, const uint8_t* payload, const uint16_t p
     return bot_send_info_return(bot, best_card_index);
 }
 
-int calculate_danger(const int my_card, row_t* rows, const int player_count) {
+    int calculate_danger(const int my_card, row_t* rows, const int player_count) {
     int best_row = -1;
     int min_diff = INT16_MAX;
 

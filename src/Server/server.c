@@ -92,17 +92,15 @@ int del_epoll_event(const int epoll_fd, const int fd) {
 }
 
 int cleanup_log(server_t* server) {
-    server->server_logger.running = 0;
-    sleep(3);
-    cleanup_log_thread(&server->server_logger);
+    cleanup_log_thread(&server->server_logger, server->thread_for_log);
     return 0;
 }
 
 // --------- server ---------
 int init_server(server_t* server, const int port, char* log_filename) {
-    pthread_t thread_for_log;
     if (init_log_thread(&server->server_logger, log_filename) != 0) {fprintf(stderr, "Error of init"); return -1;}
-    if (pthread_create(&thread_for_log, NULL, log_thread_loop, &server->server_logger) != 0) {fprintf(stderr, "Error of pthread_create"); return -1; }
+    if (pthread_create(&server->thread_for_log, NULL, log_thread_loop, &server->server_logger) != 0) {fprintf(stderr, "Error of pthread_create"); return -1; }
+
     server->log_bus = server->server_logger.log_bus;
 
     server->listen_fd = create_listen_socket(port);
@@ -210,6 +208,8 @@ void* server_main(void* arg) {
             }
         }
     }
+    printf("Очистка сервеа\n");
+    cleanup_server(server);
     return NULL;
 }
 

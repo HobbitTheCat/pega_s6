@@ -18,6 +18,9 @@ typedef struct {
 
 typedef struct {
     pthread_mutex_t mutex;
+    pthread_cond_t not_full;
+    pthread_cond_t not_empty;
+
     uint64_t write_position;
     uint64_t read_position;
     log_entry_t entries[MPSC_BUFFER_SIZE];
@@ -28,6 +31,9 @@ void log_bus_destroy(log_bus_t* bus);
 
 int log_bus_push(log_bus_t* bus, const log_entry_t* entry);
 int log_bus_pop(log_bus_t* bus, log_entry_t* entry);
+
+int log_bus_push_blocking(log_bus_t* bus, const log_entry_t* entry);
+int log_bus_pop_blocking(log_bus_t* bus, log_entry_t* entry);
 
 int log_bus_push_message(log_bus_t* bus, uint32_t session_id, log_level_t level, const char* message);
 int log_bus_push_param(log_bus_t* bus, uint32_t session_id, log_level_t level, const char* message, ...);

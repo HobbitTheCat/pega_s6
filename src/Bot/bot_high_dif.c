@@ -161,7 +161,6 @@ int best_card_choice(const int* placed_cards,
     int unknow_card_count = 0;
     for (int c = 0; c < max_value; c++)
         if (all_cards[c] == 0) unknow_card_count++;
-    printf("Unknown card count %d\n", unknow_card_count);
 
     int unknown_cards[unknow_card_count];
     int index = 0;
@@ -193,14 +192,14 @@ int best_card_choice(const int* placed_cards,
 
     int min_penalty = total_penalty[0];
     int best_card_index = 0;
-    printf("My cards:");
+    // printf("My cards:");
     for (int i = 0; i < number_of_cards_in_hand; i++) {
         if (total_penalty[i] < min_penalty) {
             min_penalty = total_penalty[i];
             best_card_index = i;
         }
-        printf(" ,(%d, %d)", my_hand[i].num, total_penalty[i]);
+        // printf(" ,(%d, %d)", my_hand[i].num, total_penalty[i]);
     }
-    printf("\n");
+    // printf("\n");
     return best_card_index;
 }

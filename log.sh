@@ -11,10 +11,6 @@ SESSION_ID=$1
 LOG_FILE="${2:-log.test}"
 OUTPUT_PDF="rapport_session_${SESSION_ID}.pdf"
 
-if [ ! -f "$LOG_FILE" ]; then
-    echo "Erreur: Le fichier $LOG_FILE est introuvable."
-    exit 1
-fi
 
 if ! command -v enscript &> /dev/null || ! command -v ps2pdf &> /dev/null; then
     echo "Erreur: Les outils 'enscript' ou 'ghostscript' ne sont pas installés."
@@ -37,24 +33,21 @@ BEGIN {
 # Filtre : Si c est [SESSION] et que l ID correspond
 $2 == "[SESSION]" && $3 == id_pattern {
 
-    # 1. Nettoyage du Timestamp (enlève les crochets [])
     gsub(/\[|\]/, "", $1)
     timestamp = $1
 
-    # 2. Reconstruction du message (champs 4 jusqu à la fin)
     message = ""
     for (i=4; i<=NF; i++) {
         message = message $i " "
     }
 
-    # 3. Affichage formaté (alignement des colonnes)
     printf "%-22s | %s\n", timestamp, message
 }
 ' "$LOG_FILE" | enscript -B -f Courier10 -j --title="Session $SESSION_ID" -o - 2>/dev/null | ps2pdf - "$OUTPUT_PDF"
 
 if [ $? -eq 0 ]; then
-    echo "✅ Succès ! Le fichier PDF a été créé :"
+    echo "Ok."
     echo "   -> $OUTPUT_PDF"
 else
-    echo "❌ Une erreur est survenue lors de la création du PDF."
+    echo "Erreur."
 fi

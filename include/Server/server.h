@@ -23,6 +23,7 @@ typedef struct {
 
     log_thread server_logger;
     log_bus_t* log_bus;
+    pthread_t thread_for_log;
 } server_t;
 
 typedef enum {P_SERVER, P_CLIENT, P_BUS} pointer_type_t;

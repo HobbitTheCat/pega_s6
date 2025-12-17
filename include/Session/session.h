@@ -72,5 +72,6 @@ int game_send_request_extra(session_t* session, uint32_t user_id);
 // Log
 int append(char* buf, int pos, const char* fmt, ...);
 int push_modification_log(const session_t* session, event_type_s action);
+int push_extra_log(const session_t* session, const int player_id, const int line);
 
 #endif //SESSION_H

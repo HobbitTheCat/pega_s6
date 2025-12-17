@@ -79,6 +79,7 @@ int game_handle_response_extra(session_t* session, const session_message_t* msg)
     const int16_t row_index = pkt->row_index;
 
     const int index_card_to_place = get_index_by_id(session, msg->data.user.client_id);
+    push_extra_log(session, msg->data.user.client_id, (int)row_index);
     push_modification_log(session,EXTR);
     take_line(session->game, session->players, row_index, index_card_to_place);
     return place_card(session->game, session->players, session->max_clients);

@@ -134,6 +134,17 @@ int push_modification_log(const session_t* session, const event_type_s action) {
     return r;
 }
 
+int push_extra_log(const session_t* session, const int player_id, const int line) {
+    char* msg = malloc(LOG_BUF_SIZE);
+    if (!msg) return -1;
+    int pos = 0;
+    pos = append(msg, pos, "EXTRA:");
+    pos = append(msg, pos, "%u_%d", player_id, line);
+    const int r = log_bus_push_message(session->log_bus, session->id, LOG_SESSION, msg);
+    free(msg);
+    return r;
+}
+
 int session_send_info(const session_t* session, const uint32_t user_id) {
     const game_t* game = session->game;
     const int player_idx = get_index_by_id(session, user_id);

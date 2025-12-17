@@ -12,10 +12,8 @@ int simulate_full_game(GameState* state, int** player_hands,
 
     int played_cards[state->num_players];
 
-    // Выбор карт всеми игроками
     for (int p = 0; p < state->num_players; p++) {
         if (p == 0 && depth == 0) {
-            // Наш выбор на первом уровне задан извне
             played_cards[0] = state->our_card_choice;
         } else {
             played_cards[p] = simple_enemy_choice(
@@ -29,7 +27,6 @@ int simulate_full_game(GameState* state, int** player_hands,
         }
     }
 
-    // Копируем состояние для симуляции
     GameState next_state = *state;
     int played_cards_copy[state->num_players];
     memcpy(played_cards_copy, played_cards, state->num_players * sizeof(int));
@@ -44,7 +41,6 @@ int simulate_full_game(GameState* state, int** player_hands,
         next_state.num_players
     );
 
-    // Рекурсивно симулируем следующий раунд
     if (depth > 0) {
         penalty += simulate_full_game(&next_state, player_hands,
                                       cards_remaining - 1, depth - 1);

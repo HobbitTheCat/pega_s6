@@ -41,7 +41,7 @@ void user_cleanup(user_t* user) {
 int user_connect(user_t* user, const char* host, const uint16_t port) {
     if (!user || !host){errno = EINVAL; return -1;}
 
-    user->sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0); //TODO проверить что NONBLOCKING
+    user->sockfd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (user->sockfd < 0){perror("Client: Socket"); return -1;}
 
     memset(&user->server_addr, 0, sizeof(user->server_addr));
@@ -177,7 +177,7 @@ int user_handle_read(user_t* user) {
                 uint16_t payload_len;
 
                 const int r = rx_try_extract_frame(rx, &header, &payload, &payload_len);
-                if (r == 0) break; // Недостаточно данных для полного кадра
+                if (r == 0) break;
                 if (r == -1) {
                     fprintf(stderr, "Client: bad packet from server\n");
                     return -1;

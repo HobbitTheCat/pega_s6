@@ -18,7 +18,7 @@
 int main() {
      user_t user;
      user_init(&user);
-     user.debug_mode = 1;
+     // user.debug_mode = 1;
      user_run(&user, "127.0.0.1", 17001);
      return 0;
 }

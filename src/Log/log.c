@@ -13,30 +13,40 @@ int init_log_thread(log_thread* log_thread, char* path) {
     log_thread->running = 1;
     return 0;
 }
-void cleanup_log_thread(log_thread* log_thread) {
+
+void log_bus_stop_waiting(log_bus_t* bus) {
+    pthread_mutex_lock(&bus->mutex);
+    pthread_cond_broadcast(&bus->not_empty);
+    pthread_mutex_unlock(&bus->mutex);
+}
+
+void cleanup_log_thread(log_thread* log_thread, const pthread_t thread) {
     log_thread->running = 0;
+    log_bus_stop_waiting(log_thread->log_bus);
+    pthread_join(thread, NULL);
     log_bus_destroy(log_thread->log_bus);
 }
 
 void* log_thread_loop(void* arg) {
-    log_thread* self = (log_thread*)arg;
+    const log_thread* self = (log_thread*)arg;
     FILE* file = fopen(self->path, "a");
-    if (file == NULL) {
-        perror("Erreur: Ouverture FAIL");
-        return NULL;
-    }
+    if (file == NULL) return NULL;
+
     log_entry_t msg;
 
     while (self->running) {
-        const int result = log_bus_pop(self->log_bus, &msg);
-        if (result == 0) {
+        const int res = log_bus_pop_blocking(self->log_bus, &msg);
+        if (res == 0) {
             fprintf(file, "[%lu] [%s] [ID:%u] %s\n",msg.timestamp,log_level_name(msg.level),msg.session_id,msg.message);
             fflush(file);
         }
-        else {
-            sleep(1);
-        }
+        else {}
     }
+
+    while (log_bus_pop(self->log_bus, &msg) == 0) {
+        fprintf(file, "[%lu] [%s] [ID:%u] %s\n", msg.timestamp, log_level_name(msg.level), msg.session_id, msg.message);
+    }
+
     fclose(file);
     return NULL;
 }

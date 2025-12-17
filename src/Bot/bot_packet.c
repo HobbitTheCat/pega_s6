@@ -27,7 +27,7 @@ int bot_handle_packet(bot_t* bot, const uint8_t type, const uint8_t* payload, co
             return bot_send_resp_extra(bot);
         case PKT_ERROR:
             printf("Error\n");
-        case PKT_PHASE_RESULT: //TODO delete phase result here
+        case PKT_PHASE_RESULT:
             printf("Got phase result\n");
         case PKT_SESSION_END:
             bot_send_simple(bot, PKT_SESSION_LEAVE);

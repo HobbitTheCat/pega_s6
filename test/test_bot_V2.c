@@ -14,11 +14,11 @@
 #include "../include/Protocol/proto_io.h"
 #include "../include/User/user.h"
 
-#define MAX_SQUADS 30
+#define MAX_SQUADS 200
 #define BOTS_PER_SQUAD 4
 #define TOTAL_BOTS (MAX_SQUADS * BOTS_PER_SQUAD)
 #define MAX_EVENTS 128
-#define RATE_LIMIT_MS 500
+#define RATE_LIMIT_MS 300
 
 typedef struct {
     uint32_t session_id;
@@ -202,6 +202,7 @@ int main() {
 
         bot_init(&bots[i].core);
         bots[i].state = STATE_PENDING_START;
+        bots[i].core.level = 0;
         bots[i].start_time = base + (uint64_t)i * delta;
         bots[i].last_action_time = base;
     }

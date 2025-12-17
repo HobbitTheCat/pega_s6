@@ -21,21 +21,19 @@ int main() {
 
     if (init_server(server, 17001, "test.log") == -1) {free(server); perror("init server"); return -1;}
 
-    // server_main(server);
-    pthread_t server_thread;
-    pthread_create(&server_thread, NULL, server_main, server);
+    server_main(server);
+    // pthread_t server_thread;
+    // pthread_create(&server_thread, NULL, server_main, server);
     //
     // user_t user;
     // user_init(&user);
     // user_run(&user, "127.0.0.1", 17001);
 
-    sleep(30);
-    server->running = 0;
-    // user_t user;
-    // user_init(&user);
+    // sleep(15);
+    // server->running = 0;
     // cleanup_server(server);
 
-    pthread_join(server_thread, NULL);
+    // pthread_join(server_thread, NULL);
 
     free(server);
     return 0;

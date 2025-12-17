@@ -125,24 +125,64 @@ int init_server(server_t* server, const int port, char* log_filename) {
     return 0;
 }
 
+// void cleanup_server(server_t* server) {
+//     if (!server) return;
+//     server->running = 0;
+//
+//     for (int session_id = 1; session_id < (int)server->next_session_id; session_id++) {
+//         server_session_t* session_info = fd_map_get(server->registered_sessions, session_id);
+//         if (!session_info) continue;
+//         unregister_session(server, session_id);
+//     } fd_map_destroy(server->registered_sessions);
+//
+//     for (int fd = 0; fd < server->response->capacity; fd++) {
+//         response_t* response = fd_map_get(server->response, fd);
+//         if (!response) continue;
+//         switch (response->type) {
+//             case P_CLIENT: cleanup_connection(server, response->ptr); break;
+//             default:
+//                 fd_map_remove(server->response, fd);
+//                 free(response);
+//         }
+//     }
+//     fd_map_destroy(server->response);
+//
+//     for (int player_id = 1; player_id < (int)server->next_player_id; player_id++) {
+//         server_player_t* player = fd_map_get(server->registered_players, (int)player_id);
+//         if (!player) continue;
+//         free(player->reconnection_token);
+//         free(player);
+//     }
+//     fd_map_destroy(server->registered_players);
+//     del_epoll_event(server->epoll_fd, server->listen_fd);
+//     close(server->listen_fd);
+//     close(server->epoll_fd);
+//
+//     cleanup_log(server);
+// }
 void cleanup_server(server_t* server) {
     if (!server) return;
     server->running = 0;
+    for (int fd = 0; fd < server->response->capacity; fd++) {
+        response_t* response = fd_map_get(server->response, fd);
+        if (!response) continue;
+        if (response->type == P_CLIENT) {
+             cleanup_connection(server, response->ptr);
+        }
+    }
 
     for (int session_id = 1; session_id < (int)server->next_session_id; session_id++) {
         server_session_t* session_info = fd_map_get(server->registered_sessions, session_id);
         if (!session_info) continue;
         unregister_session(server, session_id);
-    } fd_map_destroy(server->registered_sessions);
+    }
+    fd_map_destroy(server->registered_sessions);
 
     for (int fd = 0; fd < server->response->capacity; fd++) {
         response_t* response = fd_map_get(server->response, fd);
-        if (!response) continue;
-        switch (response->type) {
-            case P_CLIENT: cleanup_connection(server, response->ptr); break;
-            default:
-                fd_map_remove(server->response, fd);
-                free(response);
+        if (response) {
+            fd_map_remove(server->response, fd);
+            free(response);
         }
     }
     fd_map_destroy(server->response);
@@ -154,6 +194,7 @@ void cleanup_server(server_t* server) {
         free(player);
     }
     fd_map_destroy(server->registered_players);
+
     del_epoll_event(server->epoll_fd, server->listen_fd);
     close(server->listen_fd);
     close(server->epoll_fd);

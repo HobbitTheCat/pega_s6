@@ -21,7 +21,7 @@ Le moteur repose sur une séparation stricte des couches pour garantir une scala
 ### 3. Moteur de Session (Game Container)
 * **Isolation des Threads** : Chaque session de jeu s'exécute de manière autonome dans son propre thread (`pthread_detach`), gérant ses propres ressources et son cycle de vie.
 * **Machine à États (FSM)** : Logique de jeu pilotée par une machine à états finis, assurant l'intégrité des séquences (Distribution, Attente des coups, Résolution).
-
+![Project architecture](https://github.com/HobbitTheCat/pega_s6/blob/main/img/projectV4.png)
 
 ## Intelligence Artificielle (Bots)
 Le moteur intègre un module de bots autonomes agissant comme des clients réels. Trois niveaux de difficulté sont implémentés :

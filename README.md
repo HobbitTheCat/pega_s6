@@ -23,30 +23,23 @@ Le moteur repose sur une séparation stricte des couches pour garantir une scala
 * **Machine à États (FSM)** : Logique de jeu pilotée par une machine à états finis, assurant l'intégrité des séquences (Distribution, Attente des coups, Résolution).
 
 
-
----
-
 ## Intelligence Artificielle (Bots)
 Le moteur intègre un module de bots autonomes agissant comme des clients réels. Trois niveaux de difficulté sont implémentés :
 * **Niveau 1 (Heuristique)** : Évaluation locale et choix de la carte à pénalité minimale.
 * **Niveau 2 (Monte-Carlo)** : Simulation de l'état courant sur 1000 itérations pour évaluer le coup le plus avantageux.
 * **Niveau 3 (Deep Strategic)** : Simulation approfondie prenant en compte l'influence du coup sur plusieurs tours ultérieurs.
 
----
-
 ## Interface Utilisateur (TUI)
 Le moteur inclut un module d'affichage avancé pour terminal :
 * **Slice Rendering** : Algorithme permettant un rendu horizontal des cartes (tranche par tranche) pour contourner la contrainte d'affichage ligne par ligne des terminaux.
 * **Sémantique ANSI** : Code couleur dynamique basé sur le "degré de danger" des cartes (pénalités) et utilisation des caractères Unicode Box-Drawing.
 
----
 
 ## Performances & Stress Test
 Le système a été validé par des tests de charge intensifs :
 * **Capacité** : Support stable de **20000 bots** répartis sur **5000 sessions** simultanées.
 * **Efficacité** : Faible consommation CPU grâce à l'absence de commutations de contexte inutiles et à l'usage d'I/O asynchrones.
-
----
+  
 
 ## Stack Technique
 * **Langage** : C (C11) 
@@ -54,7 +47,6 @@ Le système a été validé par des tests de charge intensifs :
 * **Build** : Makefile, Scripts Bash & Awk 
 * **Debug** : Valgrind, GDB, Logs structurés 
 
----
 
 ## Auteurs
 * [Semenov Egor](https://github.com/HobbitTheCat) 

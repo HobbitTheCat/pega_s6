@@ -2,7 +2,8 @@
 
 **Pegasus** est un moteur de jeu réseau asynchrone haute performance développé en **C pur (C11)**. Conçu initialement pour le jeu de cartes "6 qui prend", ce projet constitue une infrastructure générique capable de gérer des milliers de connexions simultanées grâce à une architecture entièrement **orientée événements (EDA)**.
 
-
+Consultez le [Compte Rendu](https://github.com/HobbitTheCat/pega_s6/blob/main/Pegasus_PitonLeo_SemenovEgor.pdf).
+Consultez le [Rapport Technique](https://github.com/HobbitTheCat/pega_s6/blob/main/Pegasus_technical_PitonLeo_SemenovEgor.pdf) pour plus de détails.
 
 ## Architecture du Système
 
@@ -56,6 +57,6 @@ Le système a été validé par des tests de charge intensifs :
 ---
 
 ## Auteurs
-* **Léo Piton** 
-* **Egor Semenov**
+* [Semenov Egor](https://github.com/HobbitTheCat) 
+* [Piton Leo](https://github.com/Badoux17) 
 * *Réalisé dans le cadre de la L3 Informatique - Université de Bourgogne (2025)* 

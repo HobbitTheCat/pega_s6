@@ -43,7 +43,7 @@ Le moteur inclut un module d'affichage avancé pour terminal :
 
 ## Performances & Stress Test
 Le système a été validé par des tests de charge intensifs :
-* **Capacité** : Support stable de **2000 bots** répartis sur **500 sessions** simultanées.
+* **Capacité** : Support stable de **20000 bots** répartis sur **5000 sessions** simultanées.
 * **Efficacité** : Faible consommation CPU grâce à l'absence de commutations de contexte inutiles et à l'usage d'I/O asynchrones.
 
 ---
